@@ -1,0 +1,130 @@
+"use client";
+
+import { useActionState } from "react";
+import { GraduationCap } from "lucide-react";
+import { login, type LoginState } from "@/lib/auth/actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
+
+export default function LoginPage() {
+  const [state, action, pending] = useActionState<LoginState, FormData>(
+    login,
+    undefined
+  );
+
+  return (
+    <div className="grid min-h-dvh lg:grid-cols-2">
+      <div className="relative hidden flex-col justify-between overflow-hidden border-r bg-zinc-950 p-10 text-zinc-100 lg:flex">
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 items-center justify-center rounded-xl bg-white text-zinc-950">
+            <GraduationCap className="size-5" />
+          </div>
+          <div className="leading-tight">
+            <p className="font-semibold">Nesaciba</p>
+            <p className="text-sm text-zinc-400">SMPN 1 Cibalong</p>
+          </div>
+        </div>
+
+        <div className="max-w-md">
+          <h1 className="text-3xl font-semibold leading-tight tracking-tight">
+            Satu jendela untuk nilai dan kehadiran siswa.
+          </h1>
+          <p className="mt-4 text-sm leading-relaxed text-zinc-400">
+            Pantau performa akademik dari level angkatan hingga siswa
+            perorangan, dan kelola data nilai serta kehadiran tanpa rekap
+            manual.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4 text-sm">
+          {[
+            ["6", "semester nilai"],
+            ["11", "mata pelajaran"],
+            ["3", "level analisis"],
+          ].map(([angka, label]) => (
+            <div key={label} className="rounded-lg border border-white/10 bg-white/5 p-4">
+              <p className="text-2xl font-semibold">{angka}</p>
+              <p className="mt-1 text-xs text-zinc-400">{label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-sm">
+          <div className="mb-8 flex items-center justify-between">
+            <div className="flex items-center gap-3 lg:hidden">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-zinc-950 text-white">
+                <GraduationCap className="size-5" />
+              </div>
+              <div className="leading-tight">
+                <p className="font-semibold">Nesaciba</p>
+                <p className="text-xs text-muted-foreground">SMPN 1 Cibalong</p>
+              </div>
+            </div>
+            <ThemeToggle />
+          </div>
+
+          <h2 className="text-2xl font-semibold tracking-tight">Masuk</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Masuk dengan akun Anda untuk mengakses dashboard.
+          </p>
+
+          <form action={action} className="mt-8 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="nama@nesaciba.sch.id"
+                autoComplete="email"
+                required
+              />
+              {state?.fieldErrors?.email && (
+                <p className="text-sm text-destructive">
+                  {state.fieldErrors.email[0]}
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                placeholder="••••••••"
+                autoComplete="current-password"
+                required
+              />
+              {state?.fieldErrors?.password && (
+                <p className="text-sm text-destructive">
+                  {state.fieldErrors.password[0]}
+                </p>
+              )}
+            </div>
+
+            {state?.error && (
+              <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {state.error}
+              </p>
+            )}
+
+            <Button type="submit" className="w-full" disabled={pending}>
+              {pending ? "Memeriksa..." : "Masuk"}
+            </Button>
+          </form>
+
+          <div className="mt-8 rounded-md border bg-muted/50 p-4 text-xs leading-relaxed text-muted-foreground">
+            <p className="mb-2 font-medium text-foreground">Akun demo</p>
+            <p>Superadmin · superadmin@nesaciba.sch.id · admin123</p>
+            <p>Operator · operator@nesaciba.sch.id · admin</p>
+            <p>Guru · guru@nesaciba.sch.id · admin</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
