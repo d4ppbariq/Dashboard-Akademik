@@ -4,8 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAuth, hasPermission } from "@/lib/auth/dal";
 import { getDb, persist, newId } from "@/lib/db/store";
 import { pushAudit } from "@/lib/audit";
-
-export type ImportKind = "siswa" | "nilai" | "kehadiran";
+import type { Database } from "@/lib/db/types";
 
 export interface ImportRow {
   [key: string]: unknown;
@@ -42,6 +41,36 @@ function str(v: unknown): string {
   return String(v ?? "").trim();
 }
 
+function buildMapelIndex(db: Database) {
+  return new Map(db.mata_pelajaran.map((m) => [m.nama_mapel.toLowerCase(), m]));
+}
+
+function extractSemester(r: ImportRow): number | null {
+  return num(r.Semester ?? r.SEMESTER);
+}
+
+function extractAttendance(r: ImportRow) {
+  return {
+    sakit: num(r.Sakit ?? r.SAKIT) ?? 0,
+    izin: num(r.Izin ?? r.IZIN) ?? 0,
+    tanpaKeterangan: num(r["Tanpa Keterangan"] ?? r.TANPA_KETERANGAN ?? r.ALPA) ?? 0,
+  };
+}
+
+function extractGrades(r: ImportRow, mapelIndex: Map<string, { id: string; kode: string }>) {
+  const grades: { mapelId: string; kode: string; nilai: number }[] = [];
+  for (const [key, val] of Object.entries(r)) {
+    if (["NIS", "Nama", "Jenis Kelamin", "Semester", "Sakit", "Izin", "Tanpa Keterangan"].includes(key)) continue;
+    const n = num(val);
+    if (n === null || n < 0 || n > 100) continue;
+    const mapel = mapelIndex.get(key.toLowerCase());
+    if (mapel) {
+      grades.push({ mapelId: mapel.id, kode: mapel.kode, nilai: Math.round(n) });
+    }
+  }
+  return grades;
+}
+
 async function guard(): Promise<{ user: Awaited<ReturnType<typeof requireAuth>>; ok: boolean }> {
   const user = await requireAuth();
   if (!(await hasPermission(user, "import.execute"))) {
@@ -50,165 +79,131 @@ async function guard(): Promise<{ user: Awaited<ReturnType<typeof requireAuth>>;
   return { user, ok: true };
 }
 
-export async function validateImport(
-  kind: ImportKind,
-  rows: ImportRow[]
+export async function validateImportFlat(
+  rows: ImportRow[],
+  angkatanId: string,
+  kelasId: string
 ): Promise<ImportResult> {
   const g = await guard();
   if (!g.ok) return { ok: false, diterima: 0, ditolak: rows.length, errors: [], pesan: "Tidak memiliki izin impor" };
 
   const db = await getDb();
+  const mapelIndex = buildMapelIndex(db);
+  const kelasExists = db.kelas.some((k) => k.id === kelasId && k.angkatan_id === angkatanId);
+  if (!kelasExists) {
+    return { ok: false, diterima: 0, ditolak: rows.length, errors: [], pesan: "Kelas atau angkatan tidak valid" };
+  }
+
   const errors: ImportError[] = [];
+  const existingNis = new Set(
+    db.siswa.filter((s) => s.kelas_id === kelasId).map((s) => s.nis)
+  );
+  const seenNis = new Set<string>();
+  const seenNisSemester = new Set<string>();
 
-  if (kind === "siswa") {
-    const seenNis = new Set<string>();
-    const existingNis = new Set(db.siswa.map((s) => s.nis));
-    const kelasByKey = new Map(db.kelas.map((k) => [`${k.angkatan_id}-${k.nama_kelas}`, k.id]));
+  rows.forEach((r, i) => {
+    const baris = i + 2;
+    const nis = str(r.NIS);
+    if (!nis) return errors.push(rowError(baris, "NIS kosong"));
+    if (!str(r.Nama ?? r.NAMA)) return errors.push(rowError(baris, "Nama kosong"));
 
-    rows.forEach((r, i) => {
-      const baris = i + 2;
-      const nis = str(r.NIS);
-      if (!nis) return errors.push(rowError(baris, "NIS kosong"));
-      if (seenNis.has(nis)) return errors.push(rowError(baris, `NIS ${nis} duplikat dalam file`));
-      if (existingNis.has(nis)) return errors.push(rowError(baris, `NIS ${nis} sudah terdaftar`));
-      seenNis.add(nis);
+    const jk = str(r["Jenis Kelamin"] ?? r.JENIS_KELAMIN).toUpperCase();
+    if (jk !== "L" && jk !== "P") return errors.push(rowError(baris, "Jenis Kelamin harus L atau P"));
 
-      if (!str(r.NAMA)) return errors.push(rowError(baris, "Nama kosong"));
-      const jk = str(r.JENIS_KELAMIN).toUpperCase();
-      if (jk !== "L" && jk !== "P") return errors.push(rowError(baris, "JENIS_KELAMIN harus L atau P"));
+    const smt = extractSemester(r);
+    if (smt === null || smt < 1 || smt > SEMESTER_MAX) return errors.push(rowError(baris, "Semester harus 1-6"));
 
-      const angkatanId = str(r.ANGKATAN_ID);
-      const kelas = str(r.KELAS).toUpperCase();
-      if (!angkatanId || !kelas) return errors.push(rowError(baris, "ANGKATAN_ID dan KELAS wajib diisi"));
-      if (!kelasByKey.has(`${angkatanId}-${kelas}`)) {
-        return errors.push(rowError(baris, `Kelas ${kelas} tidak ditemukan pada angkatan tersebut`));
+    if (!seenNis.has(nis)) {
+      if (existingNis.has(nis)) return errors.push(rowError(baris, `NIS ${nis} sudah terdaftar di kelas ini`));
+    }
+    seenNis.add(nis);
+
+    const nsKey = `${nis}-${smt}`;
+    if (seenNisSemester.has(nsKey)) return errors.push(rowError(baris, `Duplikat NIS ${nis} semester ${smt}`));
+    seenNisSemester.add(nsKey);
+
+    const att = extractAttendance(r);
+    if (att.sakit < 0 || att.izin < 0 || att.tanpaKeterangan < 0) {
+      return errors.push(rowError(baris, "Sakit/Izin/Tanpa Keterangan harus >= 0"));
+    }
+
+    const grades = extractGrades(r, mapelIndex);
+    for (const g of grades) {
+      if (g.nilai < 0 || g.nilai > 100) {
+        return errors.push(rowError(baris, `Nilai ${g.kode} harus 0-100`));
       }
-    });
-  }
-
-  if (kind === "nilai") {
-    const existing = new Set(db.siswa.map((s) => s.nis));
-    const mapelByKode = new Map(db.mata_pelajaran.map((m) => [m.kode, m.id]));
-    const seen = new Set<string>();
-
-    rows.forEach((r, i) => {
-      const baris = i + 2;
-      const nis = str(r.NIS);
-      if (!existing.has(nis)) return errors.push(rowError(baris, `NIS ${nis || "(kosong)"} tidak terdaftar`));
-      const kode = str(r.KODE_MAPEL).toUpperCase();
-      if (!mapelByKode.has(kode)) return errors.push(rowError(baris, `Kode mapel ${kode} tidak dikenal`));
-      const smt = num(r.SEMESTER);
-      if (smt === null || smt < 1 || smt > SEMESTER_MAX) return errors.push(rowError(baris, "SEMESTER harus 1-6"));
-      const nilai = num(r.NILAI);
-      if (nilai === null || nilai < 0 || nilai > 100) return errors.push(rowError(baris, "NILAI harus 0-100"));
-      const key = `${nis}-${kode}-${smt}`;
-      if (seen.has(key)) return errors.push(rowError(baris, `Duplikat nilai ${kode} sem ${smt} untuk NIS ${nis}`));
-      seen.add(key);
-    });
-  }
-
-  if (kind === "kehadiran") {
-    const existing = new Set(db.siswa.map((s) => s.nis));
-    const seen = new Set<string>();
-    rows.forEach((r, i) => {
-      const baris = i + 2;
-      const nis = str(r.NIS);
-      if (!existing.has(nis)) return errors.push(rowError(baris, `NIS ${nis || "(kosong)"} tidak terdaftar`));
-      const smt = num(r.SEMESTER);
-      if (smt === null || smt < 1 || smt > SEMESTER_MAX) return errors.push(rowError(baris, "SEMESTER harus 1-6"));
-      for (const key of ["SAKIT", "IZIN", "ALPA"]) {
-        const v = num(r[key]);
-        if (v === null || v < 0) return errors.push(rowError(baris, `${key} harus angka >= 0`));
-      }
-      const dk = `${nis}-${smt}`;
-      if (seen.has(dk)) return errors.push(rowError(baris, `Duplikat kehadiran sem ${smt} untuk NIS ${nis}`));
-      seen.add(dk);
-    });
-  }
+    }
+  });
 
   const ditolak = errors.length;
   return { ok: ditolak === 0, diterima: rows.length - ditolak, ditolak, errors };
 }
 
-export async function applyImport(kind: ImportKind, rows: ImportRow[]): Promise<ImportResult> {
+export async function applyImportFlat(
+  rows: ImportRow[],
+  angkatanId: string,
+  kelasId: string
+): Promise<ImportResult> {
   const g = await guard();
   if (!g.ok) return { ok: false, diterima: 0, ditolak: rows.length, errors: [], pesan: "Tidak memiliki izin impor" };
 
   const db = await getDb();
+  const mapelIndex = buildMapelIndex(db);
+  const kelas = db.kelas.find((k) => k.id === kelasId);
+  if (!kelas) return { ok: false, diterima: 0, ditolak: rows.length, errors: [], pesan: "Kelas tidak valid" };
+
   let diterima = 0;
 
-  if (kind === "siswa") {
-    const kelasByKey = new Map(db.kelas.map((k) => [`${k.angkatan_id}-${k.nama_kelas}`, k.id]));
-    for (const r of rows) {
-      const nis = str(r.NIS);
-      if (db.siswa.some((s) => s.nis === nis)) continue;
-      const kelasId = kelasByKey.get(`${str(r.ANGKATAN_ID)}-${str(r.KELAS).toUpperCase()}`);
-      if (!kelasId) continue;
-      db.siswa.push({
-        id: newId("s", db.siswa),
-        kelas_id: kelasId,
-        nis,
-        nama: str(r.NAMA),
-        jenis_kelamin: str(r.JENIS_KELAMIN).toUpperCase() === "P" ? "P" : "L",
-        status_aktif: "AKTIF",
-      });
-      diterima += 1;
-    }
-  }
+  for (const r of rows) {
+    const nis = str(r.NIS);
+    const nama = str(r.Nama ?? r.NAMA);
+    const jk = (str(r["Jenis Kelamin"] ?? r.JENIS_KELAMIN).toUpperCase() === "P" ? "P" : "L") as "L" | "P";
+    const smt = extractSemester(r);
+    if (!nis || !nama || smt === null) continue;
 
-  if (kind === "nilai") {
-    const mapelByKode = new Map(db.mata_pelajaran.map((m) => [m.kode, m.id]));
-    for (const r of rows) {
-      const nis = str(r.NIS);
-      const siswa = db.siswa.find((s) => s.nis === nis);
-      const mapelId = mapelByKode.get(str(r.KODE_MAPEL).toUpperCase());
-      const smt = num(r.SEMESTER);
-      const nilai = num(r.NILAI);
-      if (!siswa || !mapelId || smt === null || nilai === null) continue;
+    let siswa = db.siswa.find((s) => s.nis === nis);
+    if (!siswa) {
+      const id = newId("s", db.siswa);
+      siswa = { id, kelas_id: kelasId, nis, nama, jenis_kelamin: jk, status_aktif: "AKTIF" };
+      db.siswa.push(siswa);
+    }
+
+    const att = extractAttendance(r);
+    db.kehadiran_siswa = db.kehadiran_siswa.filter(
+      (k) => !(k.siswa_id === siswa!.id && k.semester === smt)
+    );
+    db.kehadiran_siswa.push({
+      id: newId("k", db.kehadiran_siswa),
+      siswa_id: siswa.id,
+      semester: smt,
+      sakit: att.sakit,
+      izin: att.izin,
+      tanpa_keterangan: att.tanpaKeterangan,
+    });
+
+    const grades = extractGrades(r, mapelIndex);
+    for (const g of grades) {
       db.nilai_siswa = db.nilai_siswa.filter(
-        (n) => !(n.siswa_id === siswa.id && n.mata_pelajaran_id === mapelId && n.semester === smt)
+        (n) => !(n.siswa_id === siswa!.id && n.mata_pelajaran_id === g.mapelId && n.semester === smt)
       );
       db.nilai_siswa.push({
         id: newId("n", db.nilai_siswa),
         siswa_id: siswa.id,
-        mata_pelajaran_id: mapelId,
+        mata_pelajaran_id: g.mapelId,
         semester: smt,
-        nilai: Math.round(nilai),
+        nilai: g.nilai,
       });
-      diterima += 1;
     }
-  }
 
-  if (kind === "kehadiran") {
-    for (const r of rows) {
-      const nis = str(r.NIS);
-      const siswa = db.siswa.find((s) => s.nis === nis);
-      const smt = num(r.SEMESTER);
-      const sakit = num(r.SAKIT) ?? 0;
-      const izin = num(r.IZIN) ?? 0;
-      const alpa = num(r.ALPA) ?? 0;
-      if (!siswa || smt === null) continue;
-      db.kehadiran_siswa = db.kehadiran_siswa.filter(
-        (k) => !(k.siswa_id === siswa.id && k.semester === smt)
-      );
-      db.kehadiran_siswa.push({
-        id: newId("k", db.kehadiran_siswa),
-        siswa_id: siswa.id,
-        semester: smt,
-        sakit,
-        izin,
-        tanpa_keterangan: alpa,
-      });
-      diterima += 1;
-    }
+    diterima += 1;
   }
 
   pushAudit(db, {
     user_id: g.user.id,
     user_nama: g.user.nama,
     aksi: "IMPORT",
-    entitas: kind,
-    detail: `Impor data ${kind}: ${diterima} baris berhasil diproses`,
+    entitas: "gabungan",
+    detail: `Import ${kelas.nama_kelas} (${db.angkatan.find((a) => a.id === angkatanId)?.tahun_lulus ?? angkatanId}): ${diterima} baris diproses`,
   });
   await persist();
 

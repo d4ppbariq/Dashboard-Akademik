@@ -245,3 +245,21 @@ export async function deleteKelas(kelasId: string): Promise<{ error?: string }> 
   revalidatePath("/master");
   return {};
 }
+
+export async function getImportMeta() {
+  const db = await getDb();
+  const angkatanSorted = [...db.angkatan].sort((a, b) => b.tahun_lulus - a.tahun_lulus);
+  return {
+    angkatan: angkatanSorted.map((a) => ({
+      id: a.id,
+      tahunLulus: a.tahun_lulus,
+      kelas: db.kelas
+        .filter((k) => k.angkatan_id === a.id)
+        .sort((a, b) => a.nama_kelas.localeCompare(b.nama_kelas))
+        .map((k) => ({ id: k.id, nama: k.nama_kelas })),
+    })),
+    mapel: db.mata_pelajaran
+      .sort((a, b) => a.urutan - b.urutan)
+      .map((m) => ({ kode: m.kode, nama: m.nama_mapel })),
+  };
+}
