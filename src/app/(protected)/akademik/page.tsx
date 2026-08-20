@@ -10,28 +10,33 @@ import { DeleteButton } from "@/components/master/master-forms";
 import { deleteSiswa } from "@/lib/siswa/actions";
 
 interface AkademikPageProps {
-  searchParams: Promise<{ kelas?: string }>;
+  searchParams: Promise<{ angkatan?: string; kelas?: string }>;
 }
 
 export default async function AkademikPage({ searchParams }: AkademikPageProps) {
   await requireRoute("/akademik");
-  const { kelas: kelasParam } = await searchParams;
+  const { angkatan: angkatanParam, kelas: kelasParam } = await searchParams;
 
   const db = await getDb();
   const angkatanList = [...db.angkatan].sort((a, b) => b.tahun_lulus - a.tahun_lulus);
 
-  const kelasList = [...db.kelas].sort((a, b) => {
-    const ay = angkatanList.find((x) => x.id === a.angkatan_id)?.tahun_lulus ?? 0;
-    const by = angkatanList.find((x) => x.id === b.angkatan_id)?.tahun_lulus ?? 0;
-    return by - ay || a.nama_kelas.localeCompare(b.nama_kelas);
-  });
+  const angkatanId =
+    angkatanList.find((a) => a.id === angkatanParam)?.id ?? angkatanList[0]?.id;
+  const angkatan = angkatanList.find((a) => a.id === angkatanId);
+
+  const kelasList = db.kelas
+    .filter((k) => k.angkatan_id === angkatanId)
+    .sort((a, b) => a.nama_kelas.localeCompare(b.nama_kelas));
 
   const kelasId = kelasList.find((k) => k.id === kelasParam)?.id ?? kelasList[0]?.id;
-  const kelas = kelasList.find((k) => k.id === kelasId)!;
-  const angkatan = angkatanList.find((a) => a.id === kelas.angkatan_id);
+  const kelas = kelasList.find((k) => k.id === kelasId);
 
   const siswaList = db.siswa
-    .filter((s) => s.kelas_id === kelasId)
+    .filter((s) => {
+      if (kelasId) return s.kelas_id === kelasId;
+      const angkatanKelasIds = db.kelas.filter((k) => k.angkatan_id === angkatanId).map((k) => k.id);
+      return angkatanKelasIds.includes(s.kelas_id);
+    })
     .sort((a, b) => a.nama.localeCompare(b.nama));
 
   const stats = new Map<
@@ -57,27 +62,42 @@ export default async function AkademikPage({ searchParams }: AkademikPageProps) 
     <div>
       <PageHeader
         title="Kelola Data Siswa"
-        description={`Daftar siswa kelas ${kelas.nama_kelas} · Angkatan ${angkatan?.tahun_lulus}`}
+        description={`Daftar siswa${kelas ? ` kelas ${kelas.nama_kelas}` : ""} · Angkatan ${angkatan?.tahun_lulus}`}
         actions={
           <div className="flex flex-wrap gap-2">
-            <SiswaFormDialog kelasId={kelasId} />
-            <ClearKelasDialog
-              kelasId={kelasId}
-              kelasNama={kelas.nama_kelas}
-              jumlahSiswa={siswaList.length}
-            />
+            {kelasId && (
+              <>
+                <SiswaFormDialog kelasId={kelasId} />
+                <ClearKelasDialog
+                  kelasId={kelasId}
+                  kelasNama={kelas?.nama_kelas ?? ""}
+                  jumlahSiswa={siswaList.length}
+                />
+              </>
+            )}
           </div>
         }
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <SegmentedNav
-          param="kelas"
+          param="angkatan"
           basePath="/akademik"
-          options={kelasList
-            .filter((k) => k.angkatan_id === kelas.angkatan_id)
-            .map((k) => ({ value: k.id, label: `Kelas ${k.nama_kelas}` }))}
+          options={angkatanList.map((a) => ({
+            value: a.id,
+            label: `Angkatan ${a.tahun_lulus}`,
+          }))}
         />
+        {kelas && (
+          <SegmentedNav
+            param="kelas"
+            basePath="/akademik"
+            options={kelasList.map((k) => ({
+              value: k.id,
+              label: `Kelas ${k.nama_kelas}`,
+            }))}
+          />
+        )}
       </div>
 
       <Card>
@@ -122,7 +142,7 @@ export default async function AkademikPage({ searchParams }: AkademikPageProps) 
                         <div className="flex items-center justify-end gap-1">
                           <SiswaDetailDialog siswaId={s.id} />
                           <SiswaFormDialog
-                            kelasId={kelasId}
+                            kelasId={s.kelas_id}
                             siswa={{
                               id: s.id,
                               nis: s.nis,

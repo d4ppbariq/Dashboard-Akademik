@@ -95,9 +95,7 @@ export async function validateImportFlat(
   }
 
   const errors: ImportError[] = [];
-  const existingNis = new Set(
-    db.siswa.filter((s) => s.kelas_id === kelasId).map((s) => s.nis)
-  );
+  const existingNis = new Set(db.siswa.map((s) => s.nis));
   const seenNis = new Set<string>();
   const seenNisSemester = new Set<string>();
 
@@ -114,7 +112,7 @@ export async function validateImportFlat(
     if (smt === null || smt < 1 || smt > SEMESTER_MAX) return errors.push(rowError(baris, "Semester harus 1-6"));
 
     if (!seenNis.has(nis)) {
-      if (existingNis.has(nis)) return errors.push(rowError(baris, `NIS ${nis} sudah terdaftar di kelas ini`));
+      if (existingNis.has(nis)) return errors.push(rowError(baris, `NIS ${nis} sudah terdaftar`));
     }
     seenNis.add(nis);
 
@@ -205,7 +203,7 @@ export async function applyImportFlat(
     entitas: "gabungan",
     detail: `Import ${kelas.nama_kelas} (${db.angkatan.find((a) => a.id === angkatanId)?.tahun_lulus ?? angkatanId}): ${diterima} baris diproses`,
   });
-  await persist();
+  await persist(db);
 
   revalidatePath("/dashboard");
   revalidatePath("/kelas");

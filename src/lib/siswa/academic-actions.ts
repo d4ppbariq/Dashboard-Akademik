@@ -73,8 +73,9 @@ export async function addNilai(formData: FormData): Promise<{ error?: string }> 
     entitas: "nilai",
     detail: `Menambahkan nilai ${nilai} untuk siswa ${siswa?.nama ?? siswa_id}`,
   });
-  await persist();
+  await persist(db);
   revalidatePath("/akademik");
+  revalidatePath("/siswa");
   revalidatePath("/dashboard");
   return {};
 }
@@ -111,8 +112,9 @@ export async function updateNilai(formData: FormData): Promise<{ error?: string 
     entitas: "nilai",
     detail: `Mengubah nilai menjadi ${parsed.data.nilai}`,
   });
-  await persist();
+  await persist(db);
   revalidatePath("/akademik");
+  revalidatePath("/siswa");
   revalidatePath("/dashboard");
   return {};
 }
@@ -134,8 +136,9 @@ export async function deleteNilai(nilaiId: string): Promise<{ error?: string }> 
     entitas: "nilai",
     detail: `Menghapus data nilai`,
   });
-  await persist();
+  await persist(db);
   revalidatePath("/akademik");
+  revalidatePath("/siswa");
   revalidatePath("/dashboard");
   return {};
 }
@@ -188,8 +191,9 @@ export async function upsertKehadiran(formData: FormData): Promise<{ error?: str
     entitas: "kehadiran",
     detail: `${existing ? "Mengubah" : "Menambahkan"} kehadiran semester ${semester} siswa ${siswa?.nama ?? siswa_id}`,
   });
-  await persist();
+  await persist(db);
   revalidatePath("/akademik");
+  revalidatePath("/siswa");
   revalidatePath("/dashboard");
   return {};
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useTransition, useState } from "react";
 import { Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,8 +15,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { addNilai, updateNilai } from "@/lib/siswa/academic-actions";
-
-type FormState = { error?: string } | undefined;
 
 interface MapelOption {
   id: string;
@@ -50,33 +48,35 @@ export function NilaiFormDialog({
   const [open, setOpen] = useState(false);
   const [mapelId, setMapelId] = useState(data?.mata_pelajaran_id ?? mapels[0]?.id ?? "");
   const [semester, setSemester] = useState(String(data?.semester ?? 1));
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
 
-  const [state, action, pending] = useActionState<FormState, FormData>(
-    async (_prev, formData) => {
-      formData.set("siswa_id", siswaId);
-      formData.set("mata_pelajaran_id", mapelId);
-      formData.set("semester", semester);
-      let result: { error?: string };
-      if (isEdit && data?.id) {
-        formData.set("id", data.id);
-        result = await updateNilai(formData);
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    formData.set("siswa_id", siswaId);
+    formData.set("mata_pelajaran_id", mapelId);
+    formData.set("semester", semester);
+    if (isEdit && data?.id) formData.set("id", data.id);
+
+    startTransition(async () => {
+      const result = isEdit ? await updateNilai(formData) : await addNilai(formData);
+      if (result?.error) {
+        setError(result.error);
       } else {
-        result = await addNilai(formData);
-      }
-      if (!result?.error) {
+        setError(null);
         setOpen(false);
         onDone?.();
       }
-      return result;
-    },
-    undefined
-  );
+    });
+  };
 
   return (
     <Dialog
       open={open}
       onOpenChange={(v) => {
         setOpen(v);
+        setError(null);
         if (v) {
           setMapelId(data?.mata_pelajaran_id ?? mapels[0]?.id ?? "");
           setSemester(String(data?.semester ?? 1));
@@ -102,7 +102,7 @@ export function NilaiFormDialog({
             {isEdit ? "Ubah nilai siswa." : "Tambah nilai baru untuk siswa ini."}
           </DialogDescription>
         </DialogHeader>
-        <form id="nilai-form" action={action} className="space-y-4">
+        <form id="nilai-form" onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
             <Label>Mata Pelajaran</Label>
             <select
@@ -146,9 +146,9 @@ export function NilaiFormDialog({
               required
             />
           </div>
-          {state?.error && (
+          {error && (
             <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-              {state.error}
+              {error}
             </p>
           )}
         </form>

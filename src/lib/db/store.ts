@@ -7,49 +7,37 @@ import type { Database } from "./types";
 const DATA_DIR = path.join(process.cwd(), ".data");
 const DB_FILE = path.join(DATA_DIR, "db.json");
 
-let cache: Database | null = null;
-let dirty = false;
-
 async function readDb(): Promise<Database> {
-  if (cache) return cache;
   try {
     const raw = await fs.readFile(DB_FILE, "utf-8");
-    cache = JSON.parse(raw) as Database;
+    return JSON.parse(raw) as Database;
   } catch {
-    cache = buildSeed();
-    dirty = true;
+    const seed = buildSeed();
+    await fs.mkdir(DATA_DIR, { recursive: true });
+    await fs.writeFile(DB_FILE, JSON.stringify(seed), "utf-8");
+    return seed;
   }
-  return cache;
 }
 
 let saveQueue: Promise<void> = Promise.resolve();
 
 export async function getDb(): Promise<Database> {
-  const db = await readDb();
-  if (dirty) {
-    dirty = false;
-    saveQueue = saveQueue.then(() =>
-      fs.mkdir(DATA_DIR, { recursive: true }).then(() =>
-        fs.writeFile(DB_FILE, JSON.stringify(db), "utf-8")
-      )
-    );
-  }
-  return db;
+  return readDb();
 }
 
-export async function persist(): Promise<void> {
-  if (!cache) return;
-  dirty = true;
-  await getDb();
+export async function persist(data: Database): Promise<void> {
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  saveQueue = saveQueue.then(() =>
+    fs.writeFile(DB_FILE, JSON.stringify(data), "utf-8")
+  );
   await saveQueue;
 }
 
 export async function resetDb(): Promise<Database> {
-  cache = buildSeed();
-  dirty = true;
-  await getDb();
-  await saveQueue;
-  return cache;
+  const seed = buildSeed();
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  await fs.writeFile(DB_FILE, JSON.stringify(seed), "utf-8");
+  return seed;
 }
 
 export function newId(prefix: string, list?: unknown[]): string {

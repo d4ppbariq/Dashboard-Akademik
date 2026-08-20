@@ -68,7 +68,7 @@ export async function addAngkatan(formData: FormData): Promise<{ error?: string 
     entitas: "angkatan",
     detail: `Menambahkan angkatan ${parsed.data.tahun_lulus} beserta 6 kelas`,
   });
-  await persist();
+  await persist(db);
 
   revalidatePath("/master");
   revalidatePath("/dashboard");
@@ -110,7 +110,7 @@ export async function addKelas(formData: FormData): Promise<{ error?: string }> 
     entitas: "kelas",
     detail: `Menambahkan kelas ${parsed.data.nama_kelas}`,
   });
-  await persist();
+  await persist(db);
 
   revalidatePath("/master");
   return {};
@@ -151,7 +151,7 @@ export async function addMapel(formData: FormData): Promise<{ error?: string }> 
     entitas: "mata_pelajaran",
     detail: `Menambahkan mapel ${kode} - ${parsed.data.nama_mapel}`,
   });
-  await persist();
+  await persist(db);
 
   revalidatePath("/master");
   return {};
@@ -177,7 +177,7 @@ export async function deleteMapel(mapelId: string): Promise<{ error?: string }> 
     entitas: "mata_pelajaran",
     detail: `Menghapus mapel ${mapel.kode} - ${mapel.nama_mapel}`,
   });
-  await persist();
+  await persist(db);
 
   revalidatePath("/master");
   return {};
@@ -210,7 +210,7 @@ export async function deleteAngkatan(angkatanId: string): Promise<{ error?: stri
     entitas: "angkatan",
     detail: `Menghapus angkatan ${angkatan.tahun_lulus} beserta seluruh data turunannya`,
   });
-  await persist();
+  await persist(db);
 
   redirect("/master");
 }
@@ -240,7 +240,7 @@ export async function deleteKelas(kelasId: string): Promise<{ error?: string }> 
     entitas: "kelas",
     detail: `Menghapus kelas ${kelas.nama_kelas} beserta siswanya`,
   });
-  await persist();
+  await persist(db);
 
   revalidatePath("/master");
   return {};

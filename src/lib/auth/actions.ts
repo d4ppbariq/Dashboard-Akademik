@@ -61,7 +61,7 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
     detail: `${user.nama} masuk ke sistem`,
     waktu: new Date().toISOString(),
   });
-  await persist();
+  await persist(db);
 
   redirect("/dashboard");
 }
@@ -79,7 +79,7 @@ export async function logout() {
       detail: `${session.nama} keluar dari sistem`,
       waktu: new Date().toISOString(),
     });
-    await persist();
+    await persist(db);
   }
   await deleteSession();
   redirect("/login");

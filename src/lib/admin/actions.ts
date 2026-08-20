@@ -92,7 +92,7 @@ export async function createUser(formData: FormData): Promise<Result> {
     entitas: "user",
     detail: `Membuat user ${parsed.data.email} (${parsed.data.nama})`,
   });
-  await persist();
+  await persist(db);
   revalidatePath("/admin/users");
   return {};
 }
@@ -114,7 +114,7 @@ export async function toggleUserStatus(userId: string): Promise<Result> {
     entitas: "user",
     detail: `Mengubah status ${user.email} menjadi ${user.status_aktif}`,
   });
-  await persist();
+  await persist(db);
   revalidatePath("/admin/users");
   return {};
 }
@@ -141,7 +141,7 @@ export async function deleteUser(userId: string): Promise<Result> {
     entitas: "user",
     detail: `Menghapus user ${user.email}`,
   });
-  await persist();
+  await persist(db);
   revalidatePath("/admin/users");
   return {};
 }
@@ -172,7 +172,7 @@ export async function createPermission(formData: FormData): Promise<Result> {
     entitas: "permission",
     detail: `Menambahkan permission ${parsed.data.kode_permission}`,
   });
-  await persist();
+  await persist(db);
   revalidatePath("/admin/permissions");
   return {};
 }
@@ -191,7 +191,7 @@ export async function deletePermission(permissionId: string): Promise<Result> {
     entitas: "permission",
     detail: `Menghapus permission ${permissionId}`,
   });
-  await persist();
+  await persist(db);
   revalidatePath("/admin/permissions");
   return {};
 }
@@ -224,7 +224,7 @@ export async function createMenu(formData: FormData): Promise<Result> {
     entitas: "menu",
     detail: `Menambahkan menu ${parsed.data.path}`,
   });
-  await persist();
+  await persist(db);
   revalidatePath("/admin/menus");
   return {};
 }
@@ -243,7 +243,7 @@ export async function deleteMenu(menuId: string): Promise<Result> {
     entitas: "menu",
     detail: `Menghapus menu ${menuId}`,
   });
-  await persist();
+  await persist(db);
   revalidatePath("/admin/menus");
   return {};
 }
@@ -274,7 +274,7 @@ export async function createRoute(formData: FormData): Promise<Result> {
     entitas: "route",
     detail: `Menambahkan rute ${parsed.data.method} ${parsed.data.path}`,
   });
-  await persist();
+  await persist(db);
   revalidatePath("/admin/routes");
   return {};
 }
@@ -293,7 +293,7 @@ export async function deleteRoute(routeId: string): Promise<Result> {
     entitas: "route",
     detail: `Menghapus rute ${routeId}`,
   });
-  await persist();
+  await persist(db);
   revalidatePath("/admin/routes");
   return {};
 }
@@ -323,7 +323,7 @@ export async function setRolePermission(
     entitas: "role_permission",
     detail: `${assigned ? "Menambahkan" : "Menghapus"} permission ${permissionId} pada role ${roleId}`,
   });
-  await persist();
+  await persist(db);
   revalidatePath("/admin/roles");
   return {};
 }
@@ -353,7 +353,7 @@ export async function setRoleMenu(
     entitas: "role_menu",
     detail: `${assigned ? "Menambahkan" : "Menghapus"} menu ${menuId} pada role ${roleId}`,
   });
-  await persist();
+  await persist(db);
   revalidatePath("/admin/roles");
   return {};
 }
@@ -383,7 +383,7 @@ export async function setRoleRoute(
     entitas: "role_route",
     detail: `${assigned ? "Menambahkan" : "Menghapus"} rute ${routeId} pada role ${roleId}`,
   });
-  await persist();
+  await persist(db);
   revalidatePath("/admin/roles");
   return {};
 }

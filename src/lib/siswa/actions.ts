@@ -43,8 +43,8 @@ export async function addSiswa(formData: FormData): Promise<{ error?: string }> 
   if (!db.kelas.some((k) => k.id === kelas_id)) {
     return { error: "Kelas tidak valid" };
   }
-  if (db.siswa.some((s) => s.nis === nis && s.kelas_id === kelas_id)) {
-    return { error: `NIS ${nis} sudah ada di kelas ini` };
+  if (db.siswa.some((s) => s.nis === nis)) {
+    return { error: `NIS ${nis} sudah digunakan siswa lain` };
   }
 
   db.siswa.push({
@@ -62,7 +62,7 @@ export async function addSiswa(formData: FormData): Promise<{ error?: string }> 
     entitas: "siswa",
     detail: `Menambahkan siswa ${nama} (NIS ${nis})`,
   });
-  await persist();
+  await persist(db);
   revalidatePath("/akademik");
   revalidatePath("/siswa");
   revalidatePath("/dashboard");
@@ -92,8 +92,8 @@ export async function updateSiswa(formData: FormData): Promise<{ error?: string 
   if (!siswa) return { error: "Siswa tidak ditemukan" };
 
   const { nis, nama, jenis_kelamin } = parsed.data;
-  if (nis !== siswa.nis && db.siswa.some((s) => s.nis === nis && s.kelas_id === siswa.kelas_id)) {
-    return { error: `NIS ${nis} sudah digunakan siswa lain di kelas ini` };
+  if (nis !== siswa.nis && db.siswa.some((s) => s.nis === nis)) {
+    return { error: `NIS ${nis} sudah digunakan siswa lain` };
   }
 
   siswa.nis = nis;
@@ -107,7 +107,7 @@ export async function updateSiswa(formData: FormData): Promise<{ error?: string 
     entitas: "siswa",
     detail: `Mengubah data siswa ${nama} (NIS ${nis})`,
   });
-  await persist();
+  await persist(db);
   revalidatePath("/akademik");
   revalidatePath("/siswa");
   revalidatePath("/dashboard");
@@ -133,7 +133,7 @@ export async function deleteSiswa(siswaId: string): Promise<{ error?: string }> 
     entitas: "siswa",
     detail: `Menghapus siswa ${siswa.nama} (NIS ${siswa.nis}) beserta data nilai dan kehadiran`,
   });
-  await persist();
+  await persist(db);
   revalidatePath("/akademik");
   revalidatePath("/siswa");
   revalidatePath("/dashboard");
@@ -163,7 +163,7 @@ export async function clearKelas(kelasId: string): Promise<{ error?: string }> {
     entitas: "kelas",
     detail: `Mengosongkan kelas ${kelas.nama_kelas}: ${jumlah} siswa beserta data nilai dan kehadiran dihapus`,
   });
-  await persist();
+  await persist(db);
   revalidatePath("/akademik");
   revalidatePath("/siswa");
   revalidatePath("/dashboard");

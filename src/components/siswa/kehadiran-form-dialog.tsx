@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useTransition, useState } from "react";
 import { Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,8 +15,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { upsertKehadiran } from "@/lib/siswa/academic-actions";
-
-type FormState = { error?: string } | undefined;
 
 interface KehadiranData {
   id?: string;
@@ -42,27 +40,34 @@ export function KehadiranFormDialog({
   const isEdit = !!data;
   const [open, setOpen] = useState(false);
   const [semester, setSemester] = useState(String(data?.semester ?? 1));
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
 
-  const [state, action, pending] = useActionState<FormState, FormData>(
-    async (_prev, formData) => {
-      formData.set("siswa_id", siswaId);
-      formData.set("semester", semester);
-      if (data?.id) formData.set("id", data.id);
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    formData.set("siswa_id", siswaId);
+    formData.set("semester", semester);
+    if (data?.id) formData.set("id", data.id);
+
+    startTransition(async () => {
       const result = await upsertKehadiran(formData);
-      if (!result?.error) {
+      if (result?.error) {
+        setError(result.error);
+      } else {
+        setError(null);
         setOpen(false);
         onDone?.();
       }
-      return result;
-    },
-    undefined
-  );
+    });
+  };
 
   return (
     <Dialog
       open={open}
       onOpenChange={(v) => {
         setOpen(v);
+        setError(null);
         if (v) setSemester(String(data?.semester ?? 1));
       }}
     >
@@ -85,7 +90,7 @@ export function KehadiranFormDialog({
             {isEdit ? "Ubah data kehadiran siswa." : "Tambah data kehadiran baru."}
           </DialogDescription>
         </DialogHeader>
-        <form id="kehadiran-form" action={action} className="space-y-4">
+        <form id="kehadiran-form" onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
             <Label>Semester</Label>
             <select
@@ -136,9 +141,9 @@ export function KehadiranFormDialog({
               />
             </div>
           </div>
-          {state?.error && (
+          {error && (
             <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-              {state.error}
+              {error}
             </p>
           )}
         </form>
