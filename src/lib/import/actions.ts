@@ -164,7 +164,7 @@ export async function applyImportFlat(
     let siswa = db.siswa.find((s) => s.nis === nis);
     if (!siswa) {
       const id = newId("s", db.siswa);
-      siswa = { id, kelas_id: kelasId, nis, nama, jenis_kelamin: jk, status_aktif: "AKTIF" };
+      siswa = { id, kelas_id: kelasId, nis, nama, jenis_kelamin: jk };
       db.siswa.push(siswa);
     }
 

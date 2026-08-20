@@ -74,7 +74,6 @@ export interface Siswa {
   nis: string;
   nama: string;
   jenis_kelamin: JenisKelamin;
-  status_aktif: StatusAktif;
 }
 
 export interface MataPelajaran {

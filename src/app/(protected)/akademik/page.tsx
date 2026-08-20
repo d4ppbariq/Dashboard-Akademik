@@ -2,150 +2,156 @@ import { requireRoute } from "@/lib/auth/dal";
 import { getDb } from "@/lib/db/store";
 import { PageHeader } from "@/components/layout/page-header";
 import { SegmentedNav } from "@/components/layout/segmented-nav";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatNumber } from "@/lib/format";
-import {
-  getRingkasan,
-  getRekapNilaiPerSemester,
-  siswaIdsInKelas,
-} from "@/server/service/statistics";
-import { JUMLAH_SEMESTER } from "@/lib/db/seed";
+import { Card, CardContent } from "@/components/ui/card";
+import { SiswaDetailDialog } from "@/components/siswa/siswa-detail-dialog";
+import { SiswaFormDialog } from "@/components/siswa/siswa-form-dialog";
+import { ClearKelasDialog } from "@/components/siswa/clear-kelas-dialog";
+import { DeleteButton } from "@/components/master/master-forms";
+import { deleteSiswa } from "@/lib/siswa/actions";
 
 interface AkademikPageProps {
-  searchParams: Promise<{ angkatan?: string; semester?: string }>;
+  searchParams: Promise<{ kelas?: string }>;
 }
 
 export default async function AkademikPage({ searchParams }: AkademikPageProps) {
   await requireRoute("/akademik");
-  const { angkatan: angkatanParam, semester: semesterParam } = await searchParams;
+  const { kelas: kelasParam } = await searchParams;
 
   const db = await getDb();
   const angkatanList = [...db.angkatan].sort((a, b) => b.tahun_lulus - a.tahun_lulus);
-  const angkatanId =
-    angkatanList.find((a) => a.id === angkatanParam)?.id ?? angkatanList[0].id;
-  const angkatan = angkatanList.find((a) => a.id === angkatanId)!;
-  const semester = clamp(Number(semesterParam ?? JUMLAH_SEMESTER), 1, JUMLAH_SEMESTER);
 
-  const kelasList = db.kelas
-    .filter((k) => k.angkatan_id === angkatanId)
-    .sort((a, b) => a.nama_kelas.localeCompare(b.nama_kelas));
-
-  const rows = kelasList.map((kelas) => {
-    const siswaIds = siswaIdsInKelas(db, kelas.id);
-    const ringkasan = getRingkasan(db, siswaIds);
-    const rekap = getRekapNilaiPerSemester(db, siswaIds, semester);
-    const rataNilai =
-      rekap.length === 0
-        ? 0
-        : rekap.reduce((a, r) => a + r.nilai, 0) / rekap.length;
-    return { kelas, ringkasan, rekap, rataNilai: Math.round(rataNilai * 10) / 10 };
+  const kelasList = [...db.kelas].sort((a, b) => {
+    const ay = angkatanList.find((x) => x.id === a.angkatan_id)?.tahun_lulus ?? 0;
+    const by = angkatanList.find((x) => x.id === b.angkatan_id)?.tahun_lulus ?? 0;
+    return by - ay || a.nama_kelas.localeCompare(b.nama_kelas);
   });
 
-  const semesterOptions = Array.from({ length: JUMLAH_SEMESTER }, (_, i) => ({
-    value: String(i + 1),
-    label: `Sem ${i + 1}`,
-  }));
+  const kelasId = kelasList.find((k) => k.id === kelasParam)?.id ?? kelasList[0]?.id;
+  const kelas = kelasList.find((k) => k.id === kelasId)!;
+  const angkatan = angkatanList.find((a) => a.id === kelas.angkatan_id);
+
+  const siswaList = db.siswa
+    .filter((s) => s.kelas_id === kelasId)
+    .sort((a, b) => a.nama.localeCompare(b.nama));
+
+  const stats = new Map<
+    string,
+    { rataNilai: number; totalAlpa: number; totalHadir: number }
+  >();
+  for (const s of siswaList) {
+    const nilai = db.nilai_siswa.filter((n) => n.siswa_id === s.id);
+    const kehadiran = db.kehadiran_siswa.filter((k) => k.siswa_id === s.id);
+    const rata =
+      nilai.length === 0 ? 0 : nilai.reduce((a, n) => a + n.nilai, 0) / nilai.length;
+    stats.set(s.id, {
+      rataNilai: Math.round(rata * 10) / 10,
+      totalAlpa: kehadiran.reduce((a, k) => a + k.tanpa_keterangan, 0),
+      totalHadir: kehadiran.reduce(
+        (a, k) => a + 36 - k.sakit - k.izin - k.tanpa_keterangan,
+        0
+      ),
+    });
+  }
 
   return (
     <div>
       <PageHeader
-        title="Rekap Akademik"
-        description={`Rekapitulasi gabungan nilai dan kehadiran per kelas · Angkatan ${angkatan.tahun_lulus}`}
+        title="Kelola Data Siswa"
+        description={`Daftar siswa kelas ${kelas.nama_kelas} · Angkatan ${angkatan?.tahun_lulus}`}
         actions={
-          <SegmentedNav
-            param="angkatan"
-            basePath="/akademik"
-            options={angkatanList.map((a) => ({
-              value: a.id,
-              label: `Angkatan ${a.tahun_lulus}`,
-            }))}
-          />
+          <div className="flex flex-wrap gap-2">
+            <SiswaFormDialog kelasId={kelasId} />
+            <ClearKelasDialog
+              kelasId={kelasId}
+              kelasNama={kelas.nama_kelas}
+              jumlahSiswa={siswaList.length}
+            />
+          </div>
         }
       />
 
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <SegmentedNav
+          param="kelas"
+          basePath="/akademik"
+          options={kelasList
+            .filter((k) => k.angkatan_id === kelas.angkatan_id)
+            .map((k) => ({ value: k.id, label: `Kelas ${k.nama_kelas}` }))}
+        />
+      </div>
+
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle className="text-base">Per Kelas</CardTitle>
-          <SegmentedNav
-            param="semester"
-            basePath="/akademik"
-            options={semesterOptions}
-          />
-        </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left text-xs text-muted-foreground">
-                  <th className="p-3 font-medium">Kelas</th>
-                  <th className="p-3 text-right font-medium">Siswa</th>
+                  <th className="p-3 font-medium">NIS</th>
+                  <th className="p-3 font-medium">Nama</th>
+                  <th className="p-3 font-medium">JK</th>
                   <th className="p-3 text-right font-medium">Rata-rata Nilai</th>
-                  <th className="p-3 text-right font-medium">Sakit</th>
-                  <th className="p-3 text-right font-medium">Izin</th>
-                  <th className="p-3 text-right font-medium">Alpa</th>
-                  <th className="p-3 text-right font-medium">Terbaik</th>
-                  <th className="p-3 text-right font-medium">Terendah</th>
+                  <th className="p-3 text-right font-medium">Total Alpa</th>
+                  <th className="p-3 text-right font-medium">Aksi</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map(({ kelas, ringkasan, rataNilai, rekap }) => {
-                  const sorted = [...rekap].sort((a, b) => b.nilai - a.nilai);
+                {siswaList.map((s) => {
+                  const st = stats.get(s.id)!;
+                  const nilaiTone =
+                    st.rataNilai >= 80
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : st.rataNilai >= 70
+                        ? "text-amber-600 dark:text-amber-400"
+                        : "text-red-600 dark:text-red-400";
                   return (
-                    <tr key={kelas.id} className="border-b last:border-0 hover:bg-muted/40">
-                      <td className="p-3 font-medium">Kelas {kelas.nama_kelas}</td>
+                    <tr key={s.id} className="border-b last:border-0 hover:bg-muted/40">
+                      <td className="p-3 tabular-nums text-muted-foreground">{s.nis}</td>
+                      <td className="p-3 font-medium">{s.nama}</td>
+                      <td className="p-3 text-muted-foreground">
+                        {s.jenis_kelamin === "L" ? "L" : "P"}
+                      </td>
+                      <td className={`p-3 text-right font-semibold tabular-nums ${nilaiTone}`}>
+                        {st.rataNilai}
+                      </td>
                       <td className="p-3 text-right tabular-nums">
-                        {formatNumber(ringkasan.totalSiswa)}
+                        <span className={st.totalAlpa > 5 ? "font-semibold text-red-600 dark:text-red-400" : ""}>
+                          {st.totalAlpa}
+                        </span>
                       </td>
-                      <td className="p-3 text-right font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
-                        {rataNilai}
+                      <td className="p-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <SiswaDetailDialog siswaId={s.id} />
+                          <SiswaFormDialog
+                            kelasId={kelasId}
+                            siswa={{
+                              id: s.id,
+                              nis: s.nis,
+                              nama: s.nama,
+                              jenis_kelamin: s.jenis_kelamin,
+                            }}
+                          />
+                          <DeleteButton
+                            id={s.id}
+                            action={deleteSiswa}
+                            label="Hapus siswa"
+                          />
+                        </div>
                       </td>
-                      <td className="p-3 text-right tabular-nums">{formatNumber(ringkasan.totalSakit)}</td>
-                      <td className="p-3 text-right tabular-nums">{formatNumber(ringkasan.totalIzin)}</td>
-                      <td className="p-3 text-right tabular-nums">{formatNumber(ringkasan.totalAlpa)}</td>
-                      <td className="p-3 text-right tabular-nums">{sorted[0]?.mapel}</td>
-                      <td className="p-3 text-right tabular-nums">{sorted[sorted.length - 1]?.mapel}</td>
                     </tr>
                   );
                 })}
+                {siswaList.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="p-6 text-center text-muted-foreground">
+                      Belum ada siswa di kelas ini.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
         </CardContent>
       </Card>
-
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        {rows.map(({ kelas, rekap }) => (
-          <Card key={kelas.id}>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">
-                Kelas {kelas.nama_kelas} · Sem {semester}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <tbody>
-                    {rekap.map((r) => (
-                      <tr key={r.kode} className="border-b last:border-0">
-                        <td className="p-2 text-muted-foreground">{r.kode}</td>
-                        <td className="p-2">{r.mapel}</td>
-                        <td className="p-2 text-right font-semibold tabular-nums">
-                          {r.nilai}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
     </div>
   );
-}
-
-function clamp(n: number, min: number, max: number): number {
-  if (Number.isNaN(n)) return min;
-  return Math.min(Math.max(n, min), max);
 }

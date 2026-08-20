@@ -1,17 +1,9 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { requireRoute } from "@/lib/auth/dal";
 import { getDb } from "@/lib/db/store";
 import { PageHeader } from "@/components/layout/page-header";
 import { SegmentedNav } from "@/components/layout/segmented-nav";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { SiswaDetailDialog } from "@/components/siswa/siswa-detail-dialog";
-import { SiswaFormDialog } from "@/components/siswa/siswa-form-dialog";
-import { ClearKelasDialog } from "@/components/siswa/clear-kelas-dialog";
-import { DeleteButton } from "@/components/master/master-forms";
-import { deleteSiswa } from "@/lib/siswa/actions";
 
 interface SiswaPageProps {
   searchParams: Promise<{ kelas?: string }>;
@@ -60,24 +52,8 @@ export default async function SiswaPage({ searchParams }: SiswaPageProps) {
   return (
     <div>
       <PageHeader
-        title="Siswa"
+        title="Pencarian Siswa"
         description={`Daftar siswa kelas ${kelas.nama_kelas} · Angkatan ${angkatan?.tahun_lulus}`}
-        actions={
-          <div className="flex flex-wrap gap-2">
-            <SiswaFormDialog kelasId={kelasId} />
-            <ClearKelasDialog
-              kelasId={kelasId}
-              kelasNama={kelas.nama_kelas}
-              jumlahSiswa={siswaList.length}
-            />
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/kelas">
-                <ArrowLeft className="size-4" />
-                Kembali
-              </Link>
-            </Button>
-          </div>
-        }
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -101,7 +77,6 @@ export default async function SiswaPage({ searchParams }: SiswaPageProps) {
                   <th className="p-3 font-medium">JK</th>
                   <th className="p-3 text-right font-medium">Rata-rata Nilai</th>
                   <th className="p-3 text-right font-medium">Total Alpa</th>
-                  <th className="p-3 font-medium">Status</th>
                   <th className="p-3 text-right font-medium">Aksi</th>
                 </tr>
               </thead>
@@ -129,37 +104,15 @@ export default async function SiswaPage({ searchParams }: SiswaPageProps) {
                           {st.totalAlpa}
                         </span>
                       </td>
-                      <td className="p-3">
-                        <Badge variant={s.status_aktif === "AKTIF" ? "default" : "outline"}>
-                          {s.status_aktif}
-                        </Badge>
-                      </td>
                       <td className="p-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <SiswaDetailDialog siswaId={s.id} />
-                          <SiswaFormDialog
-                            kelasId={kelasId}
-                            siswa={{
-                              id: s.id,
-                              nis: s.nis,
-                              nama: s.nama,
-                              jenis_kelamin: s.jenis_kelamin,
-                              status_aktif: s.status_aktif,
-                            }}
-                          />
-                          <DeleteButton
-                            id={s.id}
-                            action={deleteSiswa}
-                            label="Hapus siswa"
-                          />
-                        </div>
+                        <SiswaDetailDialog siswaId={s.id} />
                       </td>
                     </tr>
                   );
                 })}
                 {siswaList.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="p-6 text-center text-muted-foreground">
+                    <td colSpan={6} className="p-6 text-center text-muted-foreground">
                       Belum ada siswa di kelas ini.
                     </td>
                   </tr>

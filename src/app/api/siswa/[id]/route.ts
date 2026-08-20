@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/dal";
 import { getDb } from "@/lib/db/store";
 import {
-  getGenderDistribution,
   getKehadiranSiswa,
   getPeringkatMapelSiswa,
   getRekapNilaiSiswa,
@@ -31,12 +30,26 @@ export async function GET(_req: Request, { params }: Params) {
   const mapels = db.mata_pelajaran;
   const semesterCount = Math.max(
     1,
-    ...db.nilai_siswa.filter((n) => n.siswa_id === id).map((n) => n.semester)
+    ...db.nilai_siswa.filter((n) => n.siswa_id === id).map((n) => n.semester),
+    ...db.kehadiran_siswa.filter((k) => k.siswa_id === id).map((k) => k.semester)
   );
 
   const rekapPerSemester = Array.from({ length: semesterCount }, (_, i) =>
     getRekapNilaiSiswa(db, id, i + 1)
   );
+
+  const nilaiRaw = db.nilai_siswa
+    .filter((n) => n.siswa_id === id)
+    .map((n) => {
+      const m = mapels.find((mp) => mp.id === n.mata_pelajaran_id);
+      return { id: n.id, mata_pelajaran_id: n.mata_pelajaran_id, kode: m?.kode ?? "", nama_mapel: m?.nama_mapel ?? "", semester: n.semester, nilai: n.nilai };
+    })
+    .sort((a, b) => a.semester - b.semester || a.nama_mapel.localeCompare(b.nama_mapel));
+
+  const kehadiranRaw = db.kehadiran_siswa
+    .filter((k) => k.siswa_id === id)
+    .map((k) => ({ id: k.id, semester: k.semester, sakit: k.sakit, izin: k.izin, tanpa_keterangan: k.tanpa_keterangan }))
+    .sort((a, b) => a.semester - b.semester);
 
   return NextResponse.json({
     siswa,
@@ -44,18 +57,12 @@ export async function GET(_req: Request, { params }: Params) {
     angkatan,
     mapels,
     ringkasan: getRingkasan(db, [id]),
-    gender: getGenderDistribution(db, [id]),
     kehadiran: getKehadiranSiswa(db, id),
-    tren: rekapPerSemester.map((rekap, i) => {
-      const item: Record<string, string | number | null> = {
-        semester: `Sem ${i + 1}`,
-      };
-      for (const r of rekap) item[r.kode] = r.nilai;
-      return item;
-    }),
     rekapPerSemester,
-    peringkatPerSemester: rekapPerSemester.map((rekap, i) =>
+    peringkatPerSemester: rekapPerSemester.map((_, i) =>
       getPeringkatMapelSiswa(db, id, i + 1)
     ),
+    nilaiRaw,
+    kehadiranRaw,
   });
 }

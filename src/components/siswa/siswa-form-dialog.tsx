@@ -30,7 +30,6 @@ interface SiswaData {
   nis: string;
   nama: string;
   jenis_kelamin: string;
-  status_aktif: string;
 }
 
 interface SiswaFormDialogProps {
@@ -52,7 +51,6 @@ export function SiswaFormDialog({ kelasId, siswa, onDone }: SiswaFormDialogProps
   const isEdit = !!siswa;
   const [open, setOpen] = useState(false);
   const [jk, setJk] = useState("L");
-  const [status, setStatus] = useState("AKTIF");
 
   const [state, action, pending] = useActionState<FormState, FormData>(
     async (_prev, formData) => {
@@ -61,7 +59,6 @@ export function SiswaFormDialog({ kelasId, siswa, onDone }: SiswaFormDialogProps
       let result: { error?: string };
       if (isEdit) {
         formData.set("id", siswa.id);
-        formData.set("status_aktif", status);
         result = await updateSiswa(formData);
       } else {
         result = await addSiswa(formData);
@@ -79,7 +76,6 @@ export function SiswaFormDialog({ kelasId, siswa, onDone }: SiswaFormDialogProps
     setOpen(v);
     if (v) {
       setJk(siswa?.jenis_kelamin ?? "L");
-      setStatus(siswa?.status_aktif ?? "AKTIF");
     }
   };
 
@@ -139,20 +135,6 @@ export function SiswaFormDialog({ kelasId, siswa, onDone }: SiswaFormDialogProps
               </SelectContent>
             </Select>
           </div>
-          {isEdit && (
-            <div className="space-y-1.5">
-              <Label>Status</Label>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="AKTIF">Aktif</SelectItem>
-                  <SelectItem value="NONAKTIF">Nonaktif</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
           <ErrorMsg error={state?.error} />
         </form>
         <DialogFooter>

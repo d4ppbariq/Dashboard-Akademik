@@ -10,7 +10,6 @@ const SiswaSchema = z.object({
   nis: z.string().trim().min(1, "NIS wajib diisi"),
   nama: z.string().trim().min(1, "Nama wajib diisi"),
   jenis_kelamin: z.enum(["L", "P"], { message: "Jenis kelamin harus L atau P" }),
-  status_aktif: z.enum(["AKTIF", "NONAKTIF"]).optional().default("AKTIF"),
   kelas_id: z.string().min(1),
   id: z.string().optional(),
 });
@@ -54,7 +53,6 @@ export async function addSiswa(formData: FormData): Promise<{ error?: string }> 
     nis,
     nama,
     jenis_kelamin,
-    status_aktif: "AKTIF",
   });
 
   pushAudit(db, {
@@ -65,6 +63,7 @@ export async function addSiswa(formData: FormData): Promise<{ error?: string }> 
     detail: `Menambahkan siswa ${nama} (NIS ${nis})`,
   });
   await persist();
+  revalidatePath("/akademik");
   revalidatePath("/siswa");
   revalidatePath("/dashboard");
   return {};
@@ -81,7 +80,6 @@ export async function updateSiswa(formData: FormData): Promise<{ error?: string 
     nis: formData.get("nis"),
     nama: formData.get("nama"),
     jenis_kelamin: formData.get("jenis_kelamin"),
-    status_aktif: formData.get("status_aktif") ?? "AKTIF",
     id,
   });
   if (!parsed.success) {
@@ -93,7 +91,7 @@ export async function updateSiswa(formData: FormData): Promise<{ error?: string 
   const siswa = db.siswa.find((s) => s.id === id);
   if (!siswa) return { error: "Siswa tidak ditemukan" };
 
-  const { nis, nama, jenis_kelamin, status_aktif } = parsed.data;
+  const { nis, nama, jenis_kelamin } = parsed.data;
   if (nis !== siswa.nis && db.siswa.some((s) => s.nis === nis && s.kelas_id === siswa.kelas_id)) {
     return { error: `NIS ${nis} sudah digunakan siswa lain di kelas ini` };
   }
@@ -101,7 +99,6 @@ export async function updateSiswa(formData: FormData): Promise<{ error?: string 
   siswa.nis = nis;
   siswa.nama = nama;
   siswa.jenis_kelamin = jenis_kelamin;
-  siswa.status_aktif = status_aktif ?? "AKTIF";
 
   pushAudit(db, {
     user_id: g.user.id,
@@ -111,6 +108,7 @@ export async function updateSiswa(formData: FormData): Promise<{ error?: string 
     detail: `Mengubah data siswa ${nama} (NIS ${nis})`,
   });
   await persist();
+  revalidatePath("/akademik");
   revalidatePath("/siswa");
   revalidatePath("/dashboard");
   return {};
@@ -136,6 +134,7 @@ export async function deleteSiswa(siswaId: string): Promise<{ error?: string }> 
     detail: `Menghapus siswa ${siswa.nama} (NIS ${siswa.nis}) beserta data nilai dan kehadiran`,
   });
   await persist();
+  revalidatePath("/akademik");
   revalidatePath("/siswa");
   revalidatePath("/dashboard");
   return {};
@@ -165,6 +164,7 @@ export async function clearKelas(kelasId: string): Promise<{ error?: string }> {
     detail: `Mengosongkan kelas ${kelas.nama_kelas}: ${jumlah} siswa beserta data nilai dan kehadiran dihapus`,
   });
   await persist();
+  revalidatePath("/akademik");
   revalidatePath("/siswa");
   revalidatePath("/dashboard");
   return {};

@@ -17,17 +17,19 @@ import {
   getRekapNilaiPerSemester,
   getPeringkatMapel,
   siswaIdsInAngkatan,
+  siswaIdsInKelas,
 } from "@/server/service/statistics";
 import { JUMLAH_SEMESTER } from "@/lib/db/seed";
 
 interface DashboardPageProps {
-  searchParams: Promise<{ angkatan?: string; semester?: string }>;
+  searchParams: Promise<{ angkatan?: string; semester?: string; kelas?: string }>;
 }
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   await requireRoute("/dashboard");
   const user = await requireAuth();
-  const { angkatan: angkatanParam, semester: semesterParam } = await searchParams;
+  const { angkatan: angkatanParam, semester: semesterParam, kelas: kelasParam } =
+    await searchParams;
 
   const db = await getDb();
   const angkatanList = [...db.angkatan].sort((a, b) => b.tahun_lulus - a.tahun_lulus);
@@ -38,19 +40,51 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   const semester = clamp(Number(semesterParam ?? JUMLAH_SEMESTER), 1, JUMLAH_SEMESTER);
 
-  const siswaIds = siswaIdsInAngkatan(db, angkatanId);
-  const ringkasan = getRingkasan(db, siswaIds);
-  const gender = getGenderDistribution(db, siswaIds);
-  const kehadiran = getKehadiranPerSemester(db, siswaIds);
-  const mapels = db.mata_pelajaran;
-  const tren = getTrenNilai(db, siswaIds, mapels.map((m) => m.id));
-  const rekap = getRekapNilaiPerSemester(db, siswaIds, semester);
-  const peringkat = getPeringkatMapel(db, siswaIds, semester);
+  const kelasList = db.kelas
+    .filter((k) => k.angkatan_id === angkatanId)
+    .sort((a, b) => a.nama_kelas.localeCompare(b.nama_kelas));
+
+  const kelasId = kelasList.find((k) => k.id === kelasParam)?.id ?? null;
+  const kelas = kelasId ? kelasList.find((k) => k.id === kelasId) : null;
+
+  const kelasOptions = [
+    { value: "_all", label: "Semua Kelas" },
+    ...kelasList.map((k) => ({ value: k.id, label: `Kelas ${k.nama_kelas}` })),
+  ];
 
   const semesterOptions = Array.from({ length: JUMLAH_SEMESTER }, (_, i) => ({
     value: String(i + 1),
     label: `Sem ${i + 1}`,
   }));
+
+  const siswaIdsAngkatan = siswaIdsInAngkatan(db, angkatanId);
+  const ringkasan = getRingkasan(db, siswaIdsAngkatan);
+  const gender = getGenderDistribution(db, siswaIdsAngkatan);
+  const kehadiran = getKehadiranPerSemester(db, siswaIdsAngkatan);
+  const mapels = db.mata_pelajaran;
+  const tren = getTrenNilai(db, siswaIdsAngkatan, mapels.map((m) => m.id));
+  const rekap = getRekapNilaiPerSemester(db, siswaIdsAngkatan, semester);
+  const peringkat = getPeringkatMapel(db, siswaIdsAngkatan, semester);
+
+  const showKelasCharts = kelasId !== null;
+
+  let kelasSiswaIds: string[] = [];
+  let kelasRingkasan = { totalSiswa: 0, totalSakit: 0, totalIzin: 0, totalAlpa: 0 };
+  let kelasGender: { name: string; value: number }[] = [];
+  let kelasKehadiran: { semester: string; Sakit: number; Izin: number; Alpa: number }[] = [];
+  let kelasTren: { semester: string; [key: string]: string | number | null }[] = [];
+  let kelasRekap: { kode: string; mapel: string; nilai: number }[] = [];
+  let kelasPeringkat: { kode: string; mapel: string; nilai: number }[] = [];
+
+  if (showKelasCharts && kelasId) {
+    kelasSiswaIds = siswaIdsInKelas(db, kelasId);
+    kelasRingkasan = getRingkasan(db, kelasSiswaIds);
+    kelasGender = getGenderDistribution(db, kelasSiswaIds);
+    kelasKehadiran = getKehadiranPerSemester(db, kelasSiswaIds);
+    kelasTren = getTrenNilai(db, kelasSiswaIds, mapels.map((m) => m.id));
+    kelasRekap = getRekapNilaiPerSemester(db, kelasSiswaIds, semester);
+    kelasPeringkat = getPeringkatMapel(db, kelasSiswaIds, semester);
+  }
 
   return (
     <div>
@@ -76,49 +110,129 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         totalAlpa={ringkasan.totalAlpa}
       />
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <ChartCard title="Komposisi Gender" description={`Angkatan ${angkatan.tahun_lulus}`}>
-          <GenderDonut data={gender} />
-        </ChartCard>
-
-        <ChartCard
-          title="Rekap Nilai per Mapel"
-          description={`Rata-rata nilai angkatan ${angkatan.tahun_lulus} pada ${semesterOptions.find((s) => s.value === String(semester))?.label}`}
-          className="lg:col-span-2"
-          action={
-            <SegmentedNav param="semester" basePath="/dashboard" options={semesterOptions} />
-          }
-        >
-          <RekapBar data={rekap} />
-        </ChartCard>
+      <div className="mt-4">
+        <SegmentedNav param="kelas" basePath="/dashboard" options={kelasOptions} />
       </div>
 
-      <div className="mt-4 grid gap-4">
-        <ChartCard
-          title="Kehadiran per Semester"
-          description={`Total sakit, izin, dan alpa seluruh siswa angkatan ${angkatan.tahun_lulus}`}
-        >
-          <KehadiranBar data={kehadiran} />
-        </ChartCard>
-      </div>
+      {showKelasCharts && (
+        <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {[
+            { label: "Total Siswa", value: kelasRingkasan.totalSiswa },
+            { label: "Sakit", value: kelasRingkasan.totalSakit },
+            { label: "Izin", value: kelasRingkasan.totalIzin },
+            { label: "Alpa", value: kelasRingkasan.totalAlpa },
+          ].map((s) => (
+            <div key={s.label} className="rounded-lg border p-3 text-center">
+              <p className="text-xs text-muted-foreground">{s.label}</p>
+              <p className="text-lg font-semibold tabular-nums">{s.value}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
-      <div className="mt-4 grid gap-4">
-        <ChartCard
-          title="Tren Nilai per Mapel"
-          description={`Rata-rata nilai angkatan ${angkatan.tahun_lulus} per semester`}
-        >
-          <TrenLine data={tren} mapels={mapels} />
-        </ChartCard>
-      </div>
+      {!showKelasCharts && (
+        <>
+          <h2 className="mt-6 text-sm font-semibold uppercase text-muted-foreground">
+            Grafik Angkatan
+          </h2>
 
-      <div className="mt-4 grid gap-4">
-        <ChartCard
-          title="Peringkat Nilai per Mapel"
-          description={`Tertinggi hingga terendah pada ${semesterOptions.find((s) => s.value === String(semester))?.label}`}
-        >
-          <PeringkatBar data={peringkat} />
-        </ChartCard>
-      </div>
+          <div className="mt-3 grid gap-4 lg:grid-cols-3">
+            <ChartCard title="Komposisi Gender" description={`Angkatan ${angkatan.tahun_lulus}`}>
+              <GenderDonut data={gender} />
+            </ChartCard>
+
+            <ChartCard
+              title="Rekap Nilai per Mapel"
+              description={`Rata-rata nilai angkatan ${angkatan.tahun_lulus} pada ${semesterOptions.find((s) => s.value === String(semester))?.label}`}
+              className="lg:col-span-2"
+              action={
+                <SegmentedNav param="semester" basePath="/dashboard" options={semesterOptions} />
+              }
+            >
+              <RekapBar data={rekap} />
+            </ChartCard>
+          </div>
+
+          <div className="mt-4 grid gap-4">
+            <ChartCard
+              title="Kehadiran per Semester"
+              description={`Total sakit, izin, dan alpa seluruh siswa angkatan ${angkatan.tahun_lulus}`}
+            >
+              <KehadiranBar data={kehadiran} />
+            </ChartCard>
+          </div>
+
+          <div className="mt-4 grid gap-4">
+            <ChartCard
+              title="Tren Nilai per Mapel"
+              description={`Rata-rata nilai angkatan ${angkatan.tahun_lulus} per semester`}
+            >
+              <TrenLine data={tren} mapels={mapels} />
+            </ChartCard>
+          </div>
+
+          <div className="mt-4 grid gap-4">
+            <ChartCard
+              title="Peringkat Nilai per Mapel"
+              description={`Tertinggi hingga terendah pada ${semesterOptions.find((s) => s.value === String(semester))?.label}`}
+            >
+              <PeringkatBar data={peringkat} />
+            </ChartCard>
+          </div>
+        </>
+      )}
+
+      {showKelasCharts && kelas && (
+        <>
+          <h2 className="mt-6 text-sm font-semibold uppercase text-muted-foreground">
+            Grafik Kelas {kelas.nama_kelas}
+          </h2>
+
+          <div className="mt-3 grid gap-4 lg:grid-cols-3">
+            <ChartCard
+              title="Komposisi Gender"
+              description={`Kelas ${kelas.nama_kelas} · Angkatan ${angkatan.tahun_lulus}`}
+            >
+              <GenderDonut data={kelasGender} />
+            </ChartCard>
+
+            <ChartCard
+              title="Rekap Nilai per Mapel"
+              description={`Kelas ${kelas.nama_kelas} · ${semesterOptions.find((s) => s.value === String(semester))?.label}`}
+              className="lg:col-span-2"
+            >
+              <RekapBar data={kelasRekap} />
+            </ChartCard>
+          </div>
+
+          <div className="mt-4 grid gap-4">
+            <ChartCard
+              title="Kehadiran per Semester"
+              description={`Kelas ${kelas.nama_kelas} · Total sakit, izin, dan alpa`}
+            >
+              <KehadiranBar data={kelasKehadiran} />
+            </ChartCard>
+          </div>
+
+          <div className="mt-4 grid gap-4">
+            <ChartCard
+              title="Tren Nilai per Mapel"
+              description={`Kelas ${kelas.nama_kelas} · Rata-rata nilai per semester`}
+            >
+              <TrenLine data={kelasTren} mapels={mapels} />
+            </ChartCard>
+          </div>
+
+          <div className="mt-4 grid gap-4">
+            <ChartCard
+              title="Peringkat Nilai per Mapel"
+              description={`Kelas ${kelas.nama_kelas} · Tertinggi hingga terendah`}
+            >
+              <PeringkatBar data={kelasPeringkat} />
+            </ChartCard>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -133,11 +133,11 @@ export function buildSeed(): Database {
 
   const menus = [
     { id: "menu-dashboard", nama_menu: "Dashboard Utama", path: "/dashboard", icon: "LayoutDashboard", urutan: 1, grup: "Analitik" },
-    { id: "menu-kelas", nama_menu: "Analisis Per Kelas", path: "/kelas", icon: "Users", urutan: 2, grup: "Analitik" },
+    { id: "menu-kelas", nama_menu: "Rekap Akademik", path: "/kelas", icon: "Users", urutan: 2, grup: "Analitik" },
     { id: "menu-siswa", nama_menu: "Pencarian Siswa", path: "/siswa", icon: "UserSearch", urutan: 3, grup: "Analitik" },
     { id: "menu-preview", nama_menu: "Preview Data", path: "/preview", icon: "Eye", urutan: 4, grup: "Analitik" },
     { id: "menu-import", nama_menu: "Import Data Excel", path: "/import", icon: "FileSpreadsheet", urutan: 5, grup: "Data" },
-    { id: "menu-akademik", nama_menu: "Kelola Data Akademik", path: "/akademik", icon: "Database", urutan: 6, grup: "Data" },
+    { id: "menu-akademik", nama_menu: "Kelola Data Siswa", path: "/akademik", icon: "Database", urutan: 6, grup: "Data" },
     { id: "menu-master", nama_menu: "Master Data", path: "/master", icon: "BookOpen", urutan: 7, grup: "Data" },
     { id: "menu-audit", nama_menu: "Audit Log", path: "/audit", icon: "ScrollText", urutan: 8, grup: "Sistem" },
     { id: "menu-users", nama_menu: "Manajemen User", path: "/admin/users", icon: "UserCog", urutan: 9, grup: "Sistem" },
@@ -248,7 +248,6 @@ export function buildSeed(): Database {
           nis,
           nama: `${namaDepan} ${namaBelakang}`,
           jenis_kelamin: isL ? "L" : "P",
-          status_aktif: "AKTIF",
         });
 
         const ability = 0.45 + genderRng() * 0.55;
