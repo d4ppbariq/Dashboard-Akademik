@@ -19,6 +19,7 @@ interface RekapBarProps {
 }
 
 export function RekapBar({ data, height = 300 }: RekapBarProps) {
+  const maxNilai = Math.max(...data.map((d) => d.nilai), 0);
   return (
     <div style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
@@ -46,10 +47,10 @@ export function RekapBar({ data, height = 300 }: RekapBarProps) {
           />
           <Bar dataKey="nilai" radius={[4, 4, 0, 0]}>
             <LabelList dataKey="nilai" position="top" fontSize={10} />
-            {data.map((d, i) => (
+            {data.map((d) => (
               <Cell
                 key={d.kode}
-                fill={i === 0 ? CHART_COLORS.emerald : CHART_COLORS.blue}
+                fill={d.nilai === maxNilai ? CHART_COLORS.emerald : CHART_COLORS.blue}
               />
             ))}
           </Bar>

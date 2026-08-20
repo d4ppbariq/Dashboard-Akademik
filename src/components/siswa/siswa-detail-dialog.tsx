@@ -114,7 +114,7 @@ export function SiswaDetailDialog({ siswaId }: SiswaDetailDialogProps) {
           <Eye className="size-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
+      <DialogContent className="max-h-[95vh] w-[47.5vw] max-w-[47.5vw!important] overflow-y-auto">
         {loading && !data ? (
           <div className="space-y-3 py-4">
             <Skeleton className="h-6 w-1/2" />
