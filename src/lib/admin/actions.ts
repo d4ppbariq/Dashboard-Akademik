@@ -146,6 +146,38 @@ export async function deleteUser(userId: string): Promise<Result> {
   return {};
 }
 
+export async function resetUserPassword(
+  userId: string,
+  formData: FormData
+): Promise<Result> {
+  const g = await errorIfForbidden();
+  if (!g.ok) return { error: "Tidak memiliki izin" };
+
+  const parsed = z
+    .string()
+    .min(4, "Password minimal 4 karakter")
+    .safeParse(formData.get("password"));
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Data tidak valid" };
+  }
+
+  const db = await getDb();
+  const user = db.users.find((u) => u.id === userId);
+  if (!user) return { error: "User tidak ditemukan" };
+
+  user.password_hash = hashPassword(parsed.data);
+  pushAudit(db, {
+    user_id: g.user.id,
+    user_nama: g.user.nama,
+    aksi: "UPDATE",
+    entitas: "user",
+    detail: `Reset password user ${user.email}`,
+  });
+  await persist(db);
+  revalidatePath("/admin/users");
+  return {};
+}
+
 export async function createPermission(formData: FormData): Promise<Result> {
   const g = await errorIfForbidden();
   if (!g.ok) return { error: "Tidak memiliki izin" };

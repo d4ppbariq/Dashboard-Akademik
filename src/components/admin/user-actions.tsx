@@ -1,10 +1,17 @@
 "use client";
 
-import { useActionState } from "react";
-import { Power, Trash2 } from "lucide-react";
+import { useActionState, useState } from "react";
+import { KeyRound, Power, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -14,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import {
   createUser,
+  resetUserPassword,
   toggleUserStatus,
   deleteUser,
 } from "@/lib/admin/actions";
@@ -67,15 +75,76 @@ export function UserForm({ roles }: { roles: { id: string; nama_role: string }[]
   );
 }
 
+function ResetPasswordDialog({
+  userId,
+  email,
+}: {
+  userId: string;
+  email: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [state, action, pending] = useActionState<FormState, FormData>(
+    async (_prev, formData) => {
+      const res = await resetUserPassword(userId, formData);
+      if (!res?.error) setOpen(false);
+      return res;
+    },
+    undefined
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          title="Reset Password"
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <KeyRound className="size-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Reset Password</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">{email}</p>
+        <form action={action} className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor={`password-${userId}`}>Password baru</Label>
+            <Input
+              id={`password-${userId}`}
+              name="password"
+              type="password"
+              placeholder="min. 4 karakter"
+              required
+              minLength={4}
+            />
+          </div>
+          {state?.error && (
+            <p className="text-sm text-destructive">{state.error}</p>
+          )}
+          <Button type="submit" disabled={pending} className="w-full">
+            {pending ? "Menyimpan..." : "Reset Password"}
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function UserActions({
   userId,
+  email,
   status,
 }: {
   userId: string;
+  email: string;
   status: string;
 }) {
   return (
     <div className="flex justify-end gap-1">
+      <ResetPasswordDialog userId={userId} email={email} />
       <form
         action={async () => {
           const res = await toggleUserStatus(userId);

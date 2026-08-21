@@ -54,7 +54,7 @@ export default async function AdminUsersPage() {
                         </Badge>
                       </td>
                       <td className="p-3 text-right">
-                        <UserActions userId={u.id} status={u.status_aktif} />
+                        <UserActions userId={u.id} email={u.email} status={u.status_aktif} />
                       </td>
                     </tr>
                   );
