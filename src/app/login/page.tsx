@@ -17,22 +17,13 @@ export default function LoginPage() {
   return (
     <div className="grid min-h-dvh lg:grid-cols-2">
       <div className="relative hidden flex-col justify-between overflow-hidden border-r bg-zinc-950 p-10 text-zinc-100 lg:flex">
-        <div className="leading-tight">
-          <p className="text-3xl font-bold tracking-tight">SINAR</p>
-          <p className="mt-1 text-sm text-zinc-400">
-            SISTEM NILAI, ANALISIS, REKAP
-          </p>
-        </div>
-
-        <div className="max-w-md">
-          <h1 className="text-3xl font-semibold leading-tight tracking-tight">
-            Satu jendela untuk nilai dan kehadiran siswa.
-          </h1>
-          <p className="mt-4 text-sm leading-relaxed text-zinc-400">
-            Pantau performa akademik dari level angkatan hingga siswa
-            perorangan, dan kelola data nilai serta kehadiran tanpa rekap
-            manual.
-          </p>
+        <div className="flex flex-1 items-center justify-center">
+          <div className="text-center">
+            <p className="text-6xl font-extrabold tracking-tight">SINAR</p>
+            <p className="mt-3 text-sm tracking-widest text-zinc-400">
+              SISTEM NILAI, ANALISIS, REKAP
+            </p>
+          </div>
         </div>
 
         <div className="grid grid-cols-3 gap-4 text-sm">
@@ -68,9 +59,11 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <h2 className="text-2xl font-semibold tracking-tight">Masuk</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Masuk dengan akun Anda untuk mengakses dashboard.
+          <h2 className="text-center text-2xl font-semibold tracking-tight">
+            Masuk
+          </h2>
+          <p className="mt-1 text-center text-sm text-muted-foreground">
+            Satu jendela untuk nilai dan kehadiran siswa.
           </p>
 
           <form action={action} className="mt-8 space-y-4">
