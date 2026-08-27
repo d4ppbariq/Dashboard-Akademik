@@ -40,10 +40,10 @@ export function RoleDetailDialog({
   const toggle = async (
     fn: (roleId: string, id: string, assigned: boolean) => Promise<{ error?: string }>,
     id: string,
-    assigned: boolean
+    nextAssigned: boolean
   ) => {
     setBusy(true);
-    const res = await fn(roleId, id, !assigned);
+    const res = await fn(roleId, id, nextAssigned);
     setBusy(false);
     if (res?.error) alert(res.error);
   };

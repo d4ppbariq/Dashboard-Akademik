@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { GraduationCap } from "lucide-react";
+import Image from "next/image";
 import { login, type LoginState } from "@/lib/auth/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,14 +17,11 @@ export default function LoginPage() {
   return (
     <div className="grid min-h-dvh lg:grid-cols-2">
       <div className="relative hidden flex-col justify-between overflow-hidden border-r bg-zinc-950 p-10 text-zinc-100 lg:flex">
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-white text-zinc-950">
-            <GraduationCap className="size-5" />
-          </div>
-          <div className="leading-tight">
-            <p className="font-semibold">Nesaciba</p>
-            <p className="text-sm text-zinc-400">SMPN 1 Cibalong</p>
-          </div>
+        <div className="leading-tight">
+          <p className="text-3xl font-bold tracking-tight">SINAR</p>
+          <p className="mt-1 text-sm text-zinc-400">
+            SISTEM NILAI, ANALISIS, REKAP
+          </p>
         </div>
 
         <div className="max-w-md">
@@ -54,17 +51,21 @@ export default function LoginPage() {
 
       <div className="flex items-center justify-center px-4 py-10">
         <div className="w-full max-w-sm">
-          <div className="mb-8 flex items-center justify-between">
-            <div className="flex items-center gap-3 lg:hidden">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-zinc-950 text-white">
-                <GraduationCap className="size-5" />
-              </div>
-              <div className="leading-tight">
-                <p className="font-semibold">Nesaciba</p>
-                <p className="text-xs text-muted-foreground">SMPN 1 Cibalong</p>
-              </div>
-            </div>
+          <div className="mb-6 flex items-center justify-end">
             <ThemeToggle />
+          </div>
+
+          <div className="mb-8 flex flex-col items-center text-center">
+            <Image
+              src="/logo.jpg"
+              alt="Logo SMPN 1 Cibalong"
+              width={80}
+              height={80}
+              className="size-20 rounded-2xl object-contain ring-1 ring-border"
+            />
+            <p className="mt-3 text-lg font-semibold tracking-wide">
+              SMPN 1 CIBALONG
+            </p>
           </div>
 
           <h2 className="text-2xl font-semibold tracking-tight">Masuk</h2>
