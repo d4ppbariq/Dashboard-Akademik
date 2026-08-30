@@ -21,6 +21,22 @@ export default async function KelasPage({ searchParams }: KelasPageProps) {
 
   const db = await getDb();
   const angkatanList = [...db.angkatan].sort((a, b) => b.tahun_lulus - a.tahun_lulus);
+
+  if (angkatanList.length === 0) {
+    return (
+      <div>
+        <PageHeader
+          title="Rekap Akademik"
+          description="Rekapitulasi gabungan nilai dan kehadiran per kelas"
+        />
+        <div className="rounded-lg border p-10 text-center text-muted-foreground">
+          Belum ada data akademik. Silakan buat angkatan di menu Master Data terlebih
+          dahulu.
+        </div>
+      </div>
+    );
+  }
+
   const angkatanId =
     angkatanList.find((a) => a.id === angkatanParam)?.id ?? angkatanList[0].id;
   const angkatan = angkatanList.find((a) => a.id === angkatanId)!;

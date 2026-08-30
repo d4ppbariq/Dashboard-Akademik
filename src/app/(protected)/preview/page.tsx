@@ -21,7 +21,23 @@ export default async function PreviewPage() {
   await requireRoute("/preview");
 
   const db = await getDb();
-  const angkatan = [...db.angkatan].sort((a, b) => b.tahun_lulus - a.tahun_lulus)[0];
+  const angkatanList = [...db.angkatan].sort((a, b) => b.tahun_lulus - a.tahun_lulus);
+
+  if (angkatanList.length === 0) {
+    return (
+      <div>
+        <PageHeader
+          title="Contoh / Pratinjau"
+          description="Galeri jenis visualisasi yang tersedia di dashboard, diisi data aktual angkatan terakhir."
+        />
+        <div className="rounded-lg border p-10 text-center text-muted-foreground">
+          Belum ada data akademik. Visualisasi akan tampil setelah data angkatan diisi.
+        </div>
+      </div>
+    );
+  }
+
+  const angkatan = angkatanList[0];
   const siswaIds = siswaIdsInAngkatan(db, angkatan.id);
   const mapels = db.mata_pelajaran;
   const semester = JUMLAH_SEMESTER;

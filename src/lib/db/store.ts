@@ -1,43 +1,103 @@
 import "server-only";
-import { promises as fs } from "node:fs";
-import path from "node:path";
-import { buildSeed } from "./seed";
-import type { Database } from "./types";
+import { getPool } from "./connection";
+import { writeDatabase } from "./write";
+import { buildPostgresSeed } from "./seed-postgres";
+import type {
+  Database,
+  Role,
+  User,
+  Permission,
+  Menu,
+  Route,
+  RolePermission,
+  RoleMenu,
+  RoleRoute,
+  Angkatan,
+  Kelas,
+  Siswa,
+  MataPelajaran,
+  NilaiSiswa,
+  KehadiranSiswa,
+  AuditLog,
+} from "./types";
 
-const DATA_DIR = path.join(process.cwd(), ".data");
-const DB_FILE = path.join(DATA_DIR, "db.json");
+type Row = Record<string, unknown>;
 
-async function readDb(): Promise<Database> {
-  try {
-    const raw = await fs.readFile(DB_FILE, "utf-8");
-    return JSON.parse(raw) as Database;
-  } catch {
-    const seed = buildSeed();
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    await fs.writeFile(DB_FILE, JSON.stringify(seed), "utf-8");
-    return seed;
-  }
+async function selectAll<T>(table: string): Promise<T[]> {
+  const result = await getPool().query<Row>(`SELECT * FROM "${table}"`);
+  return result.rows as T[];
 }
 
-let saveQueue: Promise<void> = Promise.resolve();
+function mapDatabase(
+  roles: Role[],
+  users: User[],
+  permissions: Permission[],
+  menus: Menu[],
+  routes: Route[],
+  rolePermissions: RolePermission[],
+  roleMenus: RoleMenu[],
+  roleRoutes: RoleRoute[],
+  angkatan: Angkatan[],
+  kelas: Kelas[],
+  siswa: Siswa[],
+  mataPelajaran: MataPelajaran[],
+  nilaiSiswa: NilaiSiswa[],
+  kehadiranSiswa: KehadiranSiswa[],
+  auditLog: AuditLog[]
+): Database {
+  return {
+    roles,
+    users,
+    permissions,
+    menus,
+    routes,
+    role_permissions: rolePermissions,
+    role_menus: roleMenus,
+    role_routes: roleRoutes,
+    angkatan,
+    kelas,
+    siswa,
+    mata_pelajaran: mataPelajaran,
+    nilai_siswa: nilaiSiswa,
+    kehadiran_siswa: kehadiranSiswa,
+    audit_log: auditLog,
+  };
+}
 
 export async function getDb(): Promise<Database> {
-  return readDb();
+  const db = mapDatabase(
+    await selectAll<Role>("Role"),
+    await selectAll<User>("User"),
+    await selectAll<Permission>("Permission"),
+    await selectAll<Menu>("Menu"),
+    await selectAll<Route>("Route"),
+    await selectAll<RolePermission>("RolePermission"),
+    await selectAll<RoleMenu>("RoleMenu"),
+    await selectAll<RoleRoute>("RoleRoute"),
+    await selectAll<Angkatan>("Angkatan"),
+    await selectAll<Kelas>("Kelas"),
+    await selectAll<Siswa>("Siswa"),
+    await selectAll<MataPelajaran>("MataPelajaran"),
+    await selectAll<NilaiSiswa>("NilaiSiswa"),
+    await selectAll<KehadiranSiswa>("KehadiranSiswa"),
+    await selectAll<AuditLog>("AuditLog")
+  );
+
+  if (db.roles.length === 0) {
+    await writeDatabase(getPool(), buildPostgresSeed());
+    return getDb();
+  }
+
+  return db;
 }
 
 export async function persist(data: Database): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  saveQueue = saveQueue.then(() =>
-    fs.writeFile(DB_FILE, JSON.stringify(data), "utf-8")
-  );
-  await saveQueue;
+  await writeDatabase(getPool(), data);
 }
 
 export async function resetDb(): Promise<Database> {
-  const seed = buildSeed();
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(DB_FILE, JSON.stringify(seed), "utf-8");
-  return seed;
+  await writeDatabase(getPool(), buildPostgresSeed());
+  return getDb();
 }
 
 export function newId(prefix: string, list?: unknown[]): string {
