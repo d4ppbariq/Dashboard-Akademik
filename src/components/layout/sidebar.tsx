@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -17,7 +18,6 @@ import {
   MenuSquare,
   Waypoints,
   LogOut,
-  GraduationCap,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -58,12 +58,16 @@ export function Sidebar({ menus, userNama, roleName }: SidebarProps) {
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r bg-sidebar lg:flex">
       <div className="flex h-16 items-center gap-3 border-b px-5">
-        <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <GraduationCap className="size-5" />
-        </div>
+        <Image
+          src="/logo.jpg"
+          alt="Logo SMPN 1 Cibalong"
+          width={36}
+          height={36}
+          className="size-9 rounded-lg object-contain ring-1 ring-border"
+        />
         <div className="leading-tight">
-          <p className="text-sm font-semibold tracking-tight">Nesaciba</p>
-          <p className="text-xs text-muted-foreground">SMPN 1 Cibalong</p>
+          <p className="text-sm font-semibold tracking-tight">SINAR</p>
+          <p className="text-xs text-muted-foreground">SMPN 1 CIBALONG</p>
         </div>
       </div>
 
