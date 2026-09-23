@@ -39,6 +39,19 @@ function detectSheetRows(wb: XLSX.WorkBook): ImportRow[] {
   return [];
 }
 
+function sanitizeValue(v: unknown): unknown {
+  if (v === null) return null;
+  if (v instanceof Date) return v.toISOString();
+  if (typeof v === "object") return String(v);
+  return v;
+}
+
+function sanitizeRows(rows: ImportRow[]): ImportRow[] {
+  return rows.map((r) =>
+    Object.fromEntries(Object.entries(r).map(([k, v]) => [k, sanitizeValue(v)]))
+  );
+}
+
 export function ImportClient() {
   const [meta, setMeta] = useState<ImportMeta | null>(null);
   const [angkatanId, setAngkatanId] = useState<string>("");
@@ -85,7 +98,7 @@ export function ImportClient() {
     try {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: "array" });
-      const parsed = detectSheetRows(wb);
+      const parsed = sanitizeRows(detectSheetRows(wb));
       setRows(parsed);
       const res = await validateImportFlat(parsed, angkatanId, kelasId);
       setResult(res);
