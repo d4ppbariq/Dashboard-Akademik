@@ -3,11 +3,8 @@ import { getDb } from "@/lib/db/store";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  RouteForm,
-  EntityDeleteButton,
-  deleteRoute,
-} from "@/components/admin/admin-forms";
+import { EditDescriptionDialog } from "@/components/admin/edit-description-dialog";
+import { updateRouteDescription } from "@/lib/admin/actions";
 
 export default async function AdminRoutesPage() {
   await requireRoute("/admin/routes");
@@ -23,12 +20,6 @@ export default async function AdminRoutesPage() {
         title="Manajemen Rute"
         description="Daftar rute yang dapat diakses oleh role."
       />
-
-      <Card className="mb-4">
-        <CardContent className="p-4">
-          <RouteForm />
-        </CardContent>
-      </Card>
 
       <Card>
         <CardContent className="p-0">
@@ -53,10 +44,12 @@ export default async function AdminRoutesPage() {
                     <td className="p-3 font-mono text-xs font-semibold">{r.path}</td>
                     <td className="p-3 text-muted-foreground">{r.deskripsi}</td>
                     <td className="p-3 text-right">
-                      <EntityDeleteButton
+                      <EditDescriptionDialog
                         id={r.id}
-                        action={deleteRoute}
-                        label={`rute ${r.method} ${r.path}`}
+                        title={`Edit deskripsi ${r.method} ${r.path}`}
+                        fieldLabel="Deskripsi rute"
+                        currentValue={r.deskripsi}
+                        action={updateRouteDescription}
                       />
                     </td>
                   </tr>

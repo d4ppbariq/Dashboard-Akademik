@@ -3,11 +3,6 @@ import { getDb } from "@/lib/db/store";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  MenuForm,
-  EntityDeleteButton,
-  deleteMenu,
-} from "@/components/admin/admin-forms";
 
 export default async function AdminMenusPage() {
   await requireRoute("/admin/menus");
@@ -22,12 +17,6 @@ export default async function AdminMenusPage() {
         description="Daftar menu navigasi sidebar beserta urutan dan grupnya."
       />
 
-      <Card className="mb-4">
-        <CardContent className="p-4">
-          <MenuForm />
-        </CardContent>
-      </Card>
-
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -39,7 +28,6 @@ export default async function AdminMenusPage() {
                   <th className="p-3 font-medium">Path</th>
                   <th className="p-3 font-medium">Ikon</th>
                   <th className="p-3 font-medium">Grup</th>
-                  <th className="p-3 text-right font-medium">Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -51,13 +39,6 @@ export default async function AdminMenusPage() {
                     <td className="p-3 font-mono text-xs">{m.icon}</td>
                     <td className="p-3">
                       <Badge variant="secondary">{m.grup}</Badge>
-                    </td>
-                    <td className="p-3 text-right">
-                      <EntityDeleteButton
-                        id={m.id}
-                        action={deleteMenu}
-                        label={`menu ${m.nama_menu}`}
-                      />
                     </td>
                   </tr>
                 ))}

@@ -3,11 +3,8 @@ import { getDb } from "@/lib/db/store";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  PermissionForm,
-  EntityDeleteButton,
-  deletePermission,
-} from "@/components/admin/admin-forms";
+import { EditDescriptionDialog } from "@/components/admin/edit-description-dialog";
+import { updatePermissionDescription } from "@/lib/admin/actions";
 
 export default async function AdminPermissionsPage() {
   await requireRoute("/admin/permissions");
@@ -20,12 +17,6 @@ export default async function AdminPermissionsPage() {
         title="Manajemen Permission"
         description="Daftar izin operasional yang dapat ditautkan ke role."
       />
-
-      <Card className="mb-4">
-        <CardContent className="p-4">
-          <PermissionForm />
-        </CardContent>
-      </Card>
 
       <Card>
         <CardContent className="p-0">
@@ -54,10 +45,12 @@ export default async function AdminPermissionsPage() {
                       <td className="p-3 text-muted-foreground">{p.deskripsi}</td>
                       <td className="p-3">{count} role</td>
                       <td className="p-3 text-right">
-                        <EntityDeleteButton
+                        <EditDescriptionDialog
                           id={p.id}
-                          action={deletePermission}
-                          label={`permission ${p.kode_permission}`}
+                          title={`Edit deskripsi ${p.kode_permission}`}
+                          fieldLabel="Deskripsi permission"
+                          currentValue={p.deskripsi}
+                          action={updatePermissionDescription}
                         />
                       </td>
                     </tr>

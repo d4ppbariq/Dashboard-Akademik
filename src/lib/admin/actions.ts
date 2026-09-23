@@ -228,6 +228,35 @@ export async function deletePermission(permissionId: string): Promise<Result> {
   return {};
 }
 
+export async function updatePermissionDescription(
+  permissionId: string,
+  formData: FormData
+): Promise<Result> {
+  const g = await errorIfForbidden();
+  if (!g.ok) return { error: "Tidak memiliki izin" };
+
+  const parsed = z.string().trim().min(2, "Deskripsi minimal 2 karakter").safeParse(formData.get("deskripsi"));
+  if (!parsed.success) {
+    return { error: "Deskripsi minimal 2 karakter" };
+  }
+
+  const db = await getDb();
+  const permission = db.permissions.find((p) => p.id === permissionId);
+  if (!permission) return { error: "Permission tidak ditemukan" };
+
+  permission.deskripsi = parsed.data;
+  pushAudit(db, {
+    user_id: g.user.id,
+    user_nama: g.user.nama,
+    aksi: "UPDATE",
+    entitas: "permission",
+    detail: `Mengubah deskripsi permission ${permission.kode_permission}`,
+  });
+  await persist(db);
+  revalidatePath("/admin/permissions");
+  return {};
+}
+
 export async function createMenu(formData: FormData): Promise<Result> {
   const g = await errorIfForbidden();
   if (!g.ok) return { error: "Tidak memiliki izin" };
@@ -324,6 +353,35 @@ export async function deleteRoute(routeId: string): Promise<Result> {
     aksi: "DELETE",
     entitas: "route",
     detail: `Menghapus rute ${routeId}`,
+  });
+  await persist(db);
+  revalidatePath("/admin/routes");
+  return {};
+}
+
+export async function updateRouteDescription(
+  routeId: string,
+  formData: FormData
+): Promise<Result> {
+  const g = await errorIfForbidden();
+  if (!g.ok) return { error: "Tidak memiliki izin" };
+
+  const parsed = z.string().trim().min(2, "Deskripsi minimal 2 karakter").safeParse(formData.get("deskripsi"));
+  if (!parsed.success) {
+    return { error: "Deskripsi minimal 2 karakter" };
+  }
+
+  const db = await getDb();
+  const route = db.routes.find((r) => r.id === routeId);
+  if (!route) return { error: "Rute tidak ditemukan" };
+
+  route.deskripsi = parsed.data;
+  pushAudit(db, {
+    user_id: g.user.id,
+    user_nama: g.user.nama,
+    aksi: "UPDATE",
+    entitas: "route",
+    detail: `Mengubah deskripsi rute ${route.method} ${route.path}`,
   });
   await persist(db);
   revalidatePath("/admin/routes");
