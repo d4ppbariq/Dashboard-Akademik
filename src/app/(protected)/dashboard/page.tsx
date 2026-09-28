@@ -77,9 +77,21 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const gender = getGenderDistribution(db, siswaIdsAngkatan);
   const kehadiran = getKehadiranPerSemester(db, siswaIdsAngkatan);
   const mapels = db.mata_pelajaran;
-  const tren = getTrenNilai(db, siswaIdsAngkatan, mapels.map((m) => m.id));
-  const rekap = getRekapNilaiPerSemester(db, siswaIdsAngkatan, semester);
-  const peringkat = getPeringkatMapel(db, siswaIdsAngkatan, semester);
+  // Hanya mapel yang punya nilai pada angkatan ini. Tanpa ini, mapel kurikulum
+  // lama ikut tampil sebagai garis 0 dan menggeser warna mapel lain.
+  const mapelBerlaku = new Set(
+    db.nilai_siswa
+      .filter((n) => siswaIdsAngkatan.includes(n.siswa_id))
+      .map((n) => n.mata_pelajaran_id)
+  );
+  const trenMapels = mapels.filter((m) => mapelBerlaku.has(m.id));
+  const tren = getTrenNilai(db, siswaIdsAngkatan, trenMapels.map((m) => m.id));
+  const rekap = getRekapNilaiPerSemester(db, siswaIdsAngkatan, semester).filter(
+    (r) => r.nilai !== null
+  );
+  const peringkat = getPeringkatMapel(db, siswaIdsAngkatan, semester).filter(
+    (r) => r.nilai !== null
+  );
 
   const showKelasCharts = kelasId !== null;
 
@@ -88,17 +100,21 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   let kelasGender: { name: string; value: number }[] = [];
   let kelasKehadiran: { semester: string; Sakit: number; Izin: number; Alpa: number }[] = [];
   let kelasTren: { semester: string; [key: string]: string | number | null }[] = [];
-  let kelasRekap: { kode: string; mapel: string; nilai: number }[] = [];
-  let kelasPeringkat: { kode: string; mapel: string; nilai: number }[] = [];
+  let kelasRekap: { kode: string; mapel: string; nilai: number | null }[] = [];
+  let kelasPeringkat: { kode: string; mapel: string; nilai: number | null }[] = [];
 
   if (showKelasCharts && kelasId) {
     kelasSiswaIds = siswaIdsInKelas(db, kelasId);
     kelasRingkasan = getRingkasan(db, kelasSiswaIds);
     kelasGender = getGenderDistribution(db, kelasSiswaIds);
     kelasKehadiran = getKehadiranPerSemester(db, kelasSiswaIds);
-    kelasTren = getTrenNilai(db, kelasSiswaIds, mapels.map((m) => m.id));
-    kelasRekap = getRekapNilaiPerSemester(db, kelasSiswaIds, semester);
-    kelasPeringkat = getPeringkatMapel(db, kelasSiswaIds, semester);
+    kelasTren = getTrenNilai(db, kelasSiswaIds, trenMapels.map((m) => m.id));
+    kelasRekap = getRekapNilaiPerSemester(db, kelasSiswaIds, semester).filter(
+      (r) => r.nilai !== null
+    );
+    kelasPeringkat = getPeringkatMapel(db, kelasSiswaIds, semester).filter(
+      (r) => r.nilai !== null
+    );
   }
 
   return (
@@ -182,7 +198,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               title="Tren Nilai per Mapel"
               description={`Rata-rata nilai angkatan ${angkatan.tahun_lulus} per semester`}
             >
-              <TrenLine data={tren} mapels={mapels} />
+              <TrenLine data={tren} mapels={trenMapels} />
             </ChartCard>
           </div>
 
@@ -234,7 +250,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               title="Tren Nilai per Mapel"
               description={`Kelas ${kelas.nama_kelas} · Rata-rata nilai per semester`}
             >
-              <TrenLine data={kelasTren} mapels={mapels} />
+              <TrenLine data={kelasTren} mapels={trenMapels} />
             </ChartCard>
           </div>
 

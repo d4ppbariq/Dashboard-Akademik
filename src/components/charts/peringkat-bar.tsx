@@ -14,12 +14,16 @@ import {
 import { CHART_COLORS } from "./chart-colors";
 
 interface PeringkatBarProps {
-  data: { kode: string; mapel: string; nilai: number }[];
+  data: { kode: string; mapel: string; nilai: number | null }[];
   height?: number;
 }
 
 export function PeringkatBar({ data, height = 320 }: PeringkatBarProps) {
-  const ranked = [...data].sort((a, b) => b.nilai - a.nilai);
+  // null dibuang: bila tidak, mapel yang tidak berlaku akan mendarat di dasar
+  // dan diberi warna merah seolah-olah itu mapel dengan nilai terendah.
+  const ranked = data
+    .filter((d): d is { kode: string; mapel: string; nilai: number } => d.nilai !== null)
+    .sort((a, b) => b.nilai - a.nilai);
 
   return (
     <div style={{ height }}>

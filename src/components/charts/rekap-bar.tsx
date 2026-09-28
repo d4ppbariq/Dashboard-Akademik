@@ -14,16 +14,19 @@ import {
 import { CHART_COLORS } from "./chart-colors";
 
 interface RekapBarProps {
-  data: { kode: string; mapel: string; nilai: number }[];
+  data: { kode: string; mapel: string; nilai: number | null }[];
   height?: number;
 }
 
 export function RekapBar({ data, height = 300 }: RekapBarProps) {
-  const maxNilai = Math.max(...data.map((d) => d.nilai), 0);
+  // null berarti mapel tidak berlaku bagi angkatan ini; memplotnya sebagai 0
+  // akan membuatnya tampak sebagai mapel terendah.
+  const bars = data.filter((d): d is { kode: string; mapel: string; nilai: number } => d.nilai !== null);
+  const maxNilai = Math.max(...bars.map((d) => d.nilai), 0);
   return (
     <div style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} barSize={26}>
+        <BarChart data={bars} barSize={26}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.4} />
           <XAxis
             dataKey="kode"
@@ -47,7 +50,7 @@ export function RekapBar({ data, height = 300 }: RekapBarProps) {
           />
           <Bar dataKey="nilai" radius={[4, 4, 0, 0]}>
             <LabelList dataKey="nilai" position="top" fontSize={10} />
-            {data.map((d) => (
+            {bars.map((d) => (
               <Cell
                 key={d.kode}
                 fill={d.nilai === maxNilai ? CHART_COLORS.emerald : CHART_COLORS.blue}

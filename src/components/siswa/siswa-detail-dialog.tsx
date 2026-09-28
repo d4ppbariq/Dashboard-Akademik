@@ -54,8 +54,8 @@ interface SiswaDetail {
   mapels: MapelOption[];
   ringkasan: { totalSiswa: number; totalSakit: number; totalIzin: number; totalAlpa: number };
   kehadiran: { semester: string; Sakit: number; Izin: number; Alpa: number }[];
-  rekapPerSemester: { kode: string; mapel: string; nilai: number }[][];
-  peringkatPerSemester: { kode: string; mapel: string; nilai: number }[][];
+  rekapPerSemester: { kode: string; mapel: string; nilai: number | null }[][];
+  peringkatPerSemester: { kode: string; mapel: string; nilai: number | null }[][];
   nilaiRaw: NilaiRaw[];
   kehadiranRaw: KehadiranRaw[];
 }
@@ -92,7 +92,6 @@ export function SiswaDetailDialog({ siswaId }: SiswaDetailDialogProps) {
   const rekap = data?.rekapPerSemester[smt - 1] ?? [];
   const peringkat = data?.peringkatPerSemester[smt - 1] ?? [];
   const nilaiBySemester = data?.nilaiRaw.filter((n) => n.semester === smt) ?? [];
-  const kehadiranBySemester = data?.kehadiranRaw.find((k) => k.semester === smt);
   const semesterList = data
     ? Array.from({ length: Math.max(1, ...data.nilaiRaw.map((n) => n.semester), ...data.kehadiranRaw.map((k) => k.semester)) }, (_, i) => i + 1)
     : [1];
@@ -215,7 +214,11 @@ export function SiswaDetailDialog({ siswaId }: SiswaDetailDialogProps) {
                             <td className="p-2 text-xs text-muted-foreground">#{i + 1}</td>
                             <td className="p-2">{r.mapel}</td>
                             <td className="p-2 text-right font-semibold tabular-nums">
-                              {r.nilai}
+                              {r.nilai === null ? (
+                                <span className="text-xs font-normal text-muted-foreground">—</span>
+                              ) : (
+                                r.nilai
+                              )}
                             </td>
                             <td className="p-2 text-right">
                               <div className="flex items-center justify-end gap-1">

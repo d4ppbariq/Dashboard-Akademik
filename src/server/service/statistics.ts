@@ -26,10 +26,17 @@ export interface TrenNilaiItem {
   [mapelKode: string]: string | number | null;
 }
 
+/**
+ * `nilai` bernilai null berarti mapel tidak berlaku / tidak ada data sama
+ * sekali untuk kelas dan semester tersebut. Nilai 0 adalah nilai asli dan
+ * tidak boleh dipakai untuk menandai "tidak ada data" — memcampurkannya
+ * membuat mapel historis tampak sebagai mata pelajaran terendah dan
+ * menurunkan rata-rata kelas.
+ */
 export interface RekapNilaiItem {
   kode: string;
   mapel: string;
-  nilai: number;
+  nilai: number | null;
 }
 
 export function kelasIdsInAngkatan(db: Database, angkatanId: string): string[] {
@@ -48,13 +55,22 @@ export function siswaIdsInKelas(db: Database, kelasId: string): string[] {
   return db.siswa.filter((s) => s.kelas_id === kelasId).map((s) => s.id);
 }
 
-function avg(nums: number[]): number {
-  if (nums.length === 0) return 0;
-  return nums.reduce((a, b) => a + b, 0) / nums.length;
-}
-
 function round1(n: number): number {
   return Math.round(n * 10) / 10;
+}
+
+/** Rata-rata yang membedakan "tidak ada data" (null) dari nilai 0. */
+function avgAtauNull(nums: number[]): number | null {
+  if (nums.length === 0) return null;
+  return round1(nums.reduce((a, b) => a + b, 0) / nums.length);
+}
+
+/** Urutkan nilai menurun, dengan null selalu di urutan akhir. */
+function bandingNilai(a: number | null, b: number | null): number {
+  if (a === null && b === null) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  return b - a;
 }
 
 export function getRingkasan(db: Database, siswaIds: string[]): Ringkasan {
@@ -120,7 +136,7 @@ export function getTrenNilai(
       const vals = rows
         .filter((n) => n.semester === smt && n.mata_pelajaran_id === m.id)
         .map((n) => n.nilai);
-      item[m.kode] = round1(avg(vals));
+      item[m.kode] = avgAtauNull(vals);
     }
     return item;
   });
@@ -142,7 +158,7 @@ export function getRekapNilaiPerSemester(
     return {
       kode: m.kode,
       mapel: m.nama_mapel,
-      nilai: round1(avg(vals)),
+      nilai: avgAtauNull(vals),
     };
   });
 }
@@ -152,8 +168,8 @@ export function getPeringkatMapel(
   siswaIds: string[],
   semester: number
 ): RekapNilaiItem[] {
-  return getRekapNilaiPerSemester(db, siswaIds, semester).sort(
-    (a, b) => b.nilai - a.nilai
+  return getRekapNilaiPerSemester(db, siswaIds, semester).sort((a, b) =>
+    bandingNilai(a.nilai, b.nilai)
   );
 }
 
@@ -205,8 +221,8 @@ export function getRekapNilaiSiswa(
     (n) => n.siswa_id === siswaId && n.semester === semester
   );
   return db.mata_pelajaran.map((m) => {
-    const found = rows.find((n) => n.mata_pelajaran_id === m.id);
-    return { kode: m.kode, mapel: m.nama_mapel, nilai: found?.nilai ?? 0 };
+    const found = rows.find((n) => n.semester === semester && n.mata_pelajaran_id === m.id);
+    return { kode: m.kode, mapel: m.nama_mapel, nilai: found?.nilai ?? null };
   });
 }
 
@@ -215,7 +231,7 @@ export function getPeringkatMapelSiswa(
   siswaId: string,
   semester: number
 ): RekapNilaiItem[] {
-  return getRekapNilaiSiswa(db, siswaId, semester).sort(
-    (a, b) => b.nilai - a.nilai
+  return getRekapNilaiSiswa(db, siswaId, semester).sort((a, b) =>
+    bandingNilai(a.nilai, b.nilai)
   );
 }

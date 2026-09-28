@@ -45,8 +45,12 @@ export default async function PreviewPage() {
   const gender = getGenderDistribution(db, siswaIds);
   const kehadiran = getKehadiranPerSemester(db, siswaIds);
   const tren = getTrenNilai(db, siswaIds, mapels.map((m) => m.id));
-  const rekap = getRekapNilaiPerSemester(db, siswaIds, semester);
-  const peringkat = getPeringkatMapel(db, siswaIds, semester);
+  const rekap = getRekapNilaiPerSemester(db, siswaIds, semester).filter(
+    (r) => r.nilai !== null
+  );
+  const peringkat = getPeringkatMapel(db, siswaIds, semester).filter(
+    (r) => r.nilai !== null
+  );
 
   return (
     <div>

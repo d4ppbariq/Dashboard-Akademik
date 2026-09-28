@@ -50,10 +50,14 @@ export default async function KelasPage({ searchParams }: KelasPageProps) {
     const siswaIds = siswaIdsInKelas(db, kelas.id);
     const ringkasan = getRingkasan(db, siswaIds);
     const rekap = getRekapNilaiPerSemester(db, siswaIds, semester);
+    // Hanya mapel yang benar-benar punya nilai ikut dihitung. Jika null ikut
+    // dijumlahkan, rata-rata kelas turun karena(mapel yang tidak berlaku
+    // untuk angkatan ini ikut membagi.
+    const adaNilai = rekap.filter((r) => r.nilai !== null);
     const rataNilai =
-      rekap.length === 0
+      adaNilai.length === 0
         ? 0
-        : rekap.reduce((a, r) => a + r.nilai, 0) / rekap.length;
+        : adaNilai.reduce((a, r) => a + (r.nilai as number), 0) / adaNilai.length;
     return { kelas, ringkasan, rekap, rataNilai: Math.round(rataNilai * 10) / 10 };
   });
 
@@ -105,7 +109,10 @@ export default async function KelasPage({ searchParams }: KelasPageProps) {
               </thead>
               <tbody>
                 {rows.map(({ kelas, ringkasan, rataNilai, rekap }) => {
-                  const sorted = [...rekap].sort((a, b) => b.nilai - a.nilai);
+                  // null (mapel tidak berlaku) tidak boleh menjadi "Terendah".
+                  const sorted = rekap
+                    .filter((r) => r.nilai !== null)
+                    .sort((a, b) => (b.nilai as number) - (a.nilai as number));
                   return (
                     <tr key={kelas.id} className="border-b last:border-0 hover:bg-muted/40">
                       <td className="p-3 font-medium">Kelas {kelas.nama_kelas}</td>
