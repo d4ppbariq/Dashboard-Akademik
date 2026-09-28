@@ -31,8 +31,13 @@ interface ImportMeta {
   mapel: { kode: string; nama: string }[];
 }
 
+const SHEET_PANDUAN = "panduan";
+
 function detectSheetRows(wb: XLSX.WorkBook): ImportRow[] {
-  for (const name of wb.SheetNames) {
+  // Template menyertakan sheet "Panduan"; tanpa pengecualian ini sheet tersebut
+  // bisa terbaca sebagai data dan menghasilkan baris sampah.
+  const kandidat = wb.SheetNames.filter((n) => n.trim().toLowerCase() !== SHEET_PANDUAN);
+  for (const name of kandidat.length > 0 ? kandidat : wb.SheetNames) {
     const rows = XLSX.utils.sheet_to_json<ImportRow>(wb.Sheets[name], { defval: "" });
     if (rows.length > 0) return rows;
   }
@@ -108,6 +113,7 @@ export function ImportClient() {
         diterima: 0,
         ditolak: 1,
         errors: [{ baris: 1, pesan: e instanceof Error ? e.message : "Gagal membaca file" }],
+        warnings: [],
       });
     } finally {
       setLoading(false);
@@ -125,6 +131,9 @@ export function ImportClient() {
 
   const previewRows = rows?.slice(0, 10) ?? [];
   const step2Enabled = angkatanId !== "" && kelasId !== "";
+
+  const terisiKolom = (result?.columns ?? []).filter((c) => c.terisi > 0);
+  const kosongKolom = (result?.columns ?? []).filter((c) => c.terisi === 0);
 
   if (!meta) {
     return (
@@ -180,8 +189,9 @@ export function ImportClient() {
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
               Format <span className="font-mono">.xlsx</span> atau <span className="font-mono">.csv</span> — satu
-              sheet berisi NIS, Nama, Jenis Kelamin, Semester, Sakit, Izin, Tanpa Keterangan, lalu kolom nilai per
-              mapel.
+              sheet berisi NIS, Nama, Jenis Kelamin, Semester, lalu kolom nilai per mapel <strong>berkode</strong>{" "}
+              (contoh <span className="font-mono">MTK</span>, <span className="font-mono">BIN</span>). Kolom
+              kehadiran bersifat opsional: kosongkan bila tidak ingin mengubah data lama.
             </p>
             <Button variant="outline" size="sm" asChild>
               <a href="/api/import/template">
@@ -240,10 +250,12 @@ export function ImportClient() {
                     )}
                     <div>
                       <p className="font-semibold">
-                        {result.ok ? "File valid" : `${result.ditolak} baris bermasalah`}
+                        {result.ok ? "File valid" : "Impor dibatalkan"}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {result.diterima} siap diproses · {result.ditolak} ditolak
+                        {result.ok
+                          ? `${result.diterima} baris siap diproses`
+                          : `${result.ditolak} baris bermasalah · tidak ada data yang akan ditulis`}
                       </p>
                     </div>
                   </div>
@@ -276,6 +288,67 @@ export function ImportClient() {
                           <tr key={i} className="border-b last:border-0">
                             <td className="p-2 tabular-nums">{e.baris}</td>
                             <td className="p-2 text-destructive">{e.pesan}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {result.warnings.length > 0 && (
+                  <div className="mt-3 max-h-40 overflow-y-auto rounded-md border border-amber-500/40 bg-amber-500/5">
+                    <p className="border-b px-3 py-1.5 text-xs font-medium text-amber-600">
+                      {result.warnings.length} peringatan (tidak membatalkan impor)
+                    </p>
+                    <ul className="space-y-0.5 p-2 text-xs text-muted-foreground">
+                      {result.warnings.slice(0, 50).map((w, i) => (
+                        <li key={i}>
+                          <span className="tabular-nums text-foreground">Baris {w.baris}</span> · {w.pesan}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {kosongKolom.length > 0 && (
+                  <div className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/5 p-3">
+                    <p className="text-xs font-medium text-amber-600">
+                      {kosongKolom.length} kolom mapel tidak terisi sama sekali
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {kosongKolom.map((c) => c.kolom).join(", ")} — periksa nama kolomnya. Bila file ini memang
+                      hanya memuat sebagian mapel, abaikan.
+                    </p>
+                  </div>
+                )}
+
+                {terisiKolom.length > 0 && (
+                  <div className="mt-3 overflow-x-auto rounded-md border">
+                    <p className="border-b px-3 py-1.5 text-xs font-medium">Cakupan kolom nilai</p>
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b text-left text-muted-foreground">
+                          <th className="p-2 font-medium">Kolom</th>
+                          <th className="p-2 font-medium">Mapel</th>
+                          <th className="p-2 font-medium">Terisi</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {terisiKolom.map((c) => (
+                          <tr key={c.kolom} className="border-b last:border-0">
+                            <td className="p-2 font-mono">{c.kolom}</td>
+                            <td className="p-2">
+                              {c.mapel ? c.mapel.nama_mapel : <span className="text-muted-foreground">tidak dikenali</span>}
+                              {c.saran && !c.mapel && (
+                                <span className="text-muted-foreground">
+                                  {" "}
+                                  — mungkin {c.saran.nama} ({c.saran.kode})
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-2 tabular-nums">
+                              {c.terisi} / {rows?.length ?? 0}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
