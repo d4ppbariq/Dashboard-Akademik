@@ -18,27 +18,15 @@ export default function LoginPage() {
 
   return (
     <div className="grid min-h-dvh lg:grid-cols-[65fr_35fr]">
-      <div className="relative hidden flex-col justify-between overflow-hidden border-r bg-zinc-950 p-10 text-zinc-100 lg:flex">
-        <div className="flex flex-1 items-center justify-center">
+      <div className="relative hidden flex-col justify-between overflow-hidden border-r bg-[url('/sekolah.jpeg')] bg-cover bg-center bg-no-repeat p-10 text-zinc-100 lg:flex">
+        <div className="absolute inset-0 z-0 bg-black/75" />
+        <div className="relative z-10 flex flex-1 items-center justify-center">
           <div className="text-center">
             <p className="text-6xl font-extrabold tracking-tight">SINAR</p>
-            <p className="mt-3 text-sm tracking-widest text-zinc-400">
+            <p className="mt-3 text-sm tracking-widest text-gray-200">
               SISTEM NILAI, ANALISIS, REKAP
             </p>
           </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-4 text-sm">
-          {[
-            ["6", "semester nilai"],
-            ["11", "mata pelajaran"],
-            ["3", "level analisis"],
-          ].map(([angka, label]) => (
-            <div key={label} className="rounded-lg border border-white/10 bg-white/5 p-4">
-              <p className="text-2xl font-semibold">{angka}</p>
-              <p className="mt-1 text-xs text-zinc-400">{label}</p>
-            </div>
-          ))}
         </div>
       </div>
 
