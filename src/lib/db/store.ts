@@ -2,6 +2,7 @@ import "server-only";
 import { getPool } from "./connection";
 import { writeDatabase } from "./write";
 import { buildPostgresSeed } from "./seed-postgres";
+import { normalizeRows } from "./normalize";
 import type {
   Database,
   Role,
@@ -25,7 +26,7 @@ type Row = Record<string, unknown>;
 
 async function selectAll<T>(table: string): Promise<T[]> {
   const result = await getPool().query<Row>(`SELECT * FROM "${table}"`);
-  return result.rows as T[];
+  return normalizeRows<T>(result.rows);
 }
 
 function mapDatabase(
