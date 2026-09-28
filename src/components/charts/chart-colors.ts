@@ -10,6 +10,8 @@ export const CHART_COLORS = {
   fuchsia: "#9333ea",
   slate: "#64748b",
   pink: "#db2777",
+  teal: "#0d9488",
+  lime: "#65a30d",
 };
 
 export const MAPEL_PALETTE: string[] = [
@@ -24,6 +26,11 @@ export const MAPEL_PALETTE: string[] = [
   CHART_COLORS.fuchsia,
   CHART_COLORS.slate,
   CHART_COLORS.pink,
+  // Ditambahkan untuk Seni Budaya dan Prakarya. Tanpa ini, indeks warna
+  // berputar memakai i % panjang sehingga mapel ke-12 dan ke-13 akan
+  // memakai warna yang sama dengan mapel ke-1 dan ke-2.
+  CHART_COLORS.teal,
+  CHART_COLORS.lime,
 ];
 
 export const KEHADIRAN_COLORS = {
