@@ -13,6 +13,7 @@ import {
   getTrenNilai,
   getRekapNilaiPerSemester,
   getPeringkatMapel,
+  mapelDenganNilai,
   siswaIdsInAngkatan,
 } from "@/server/service/statistics";
 import { JUMLAH_SEMESTER } from "@/lib/db/seed";
@@ -39,7 +40,9 @@ export default async function PreviewPage() {
 
   const angkatan = angkatanList[0];
   const siswaIds = siswaIdsInAngkatan(db, angkatan.id);
-  const mapels = db.mata_pelajaran;
+  // Sama seperti dashboard: mapel tanpa nilai disembunyikan agar pratinjau
+  // tidak menampilkan garis kosong untuk mapel kurikulum yang tidak dipakai.
+  const mapels = mapelDenganNilai(db, siswaIds);
   const semester = JUMLAH_SEMESTER;
 
   const gender = getGenderDistribution(db, siswaIds);

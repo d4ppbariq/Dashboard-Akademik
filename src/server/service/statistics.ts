@@ -55,6 +55,30 @@ export function siswaIdsInKelas(db: Database, kelasId: string): string[] {
   return db.siswa.filter((s) => s.kelas_id === kelasId).map((s) => s.id);
 }
 
+/**
+ * Mapel yang benar-benar punya nilai untuk sekumpulan siswa.
+ *
+ * Katalog MataPelajaran bersifat global, sedangkan kurikulum berbeda antar
+ * angkatan. Tanpa penyaringan ini, angkatan yang tidak memakai Seni Budaya /
+ * Prakarya tetap akan melihat kedua mapel itu sebagai garis kosong di chart.
+ *
+ * Memakai Set karena db.nilai_siswa bisa berukuran puluhan ribu baris.
+ *includes() di dalam loop membuat tiap baris memindai seluruh daftar siswa.
+ */
+export function mapelDenganNilai(
+  db: Database,
+  siswaIds: string[]
+): Database["mata_pelajaran"] {
+  const ids = new Set(siswaIds);
+  const terpakai = new Set<string>();
+  for (const n of db.nilai_siswa) {
+    if (ids.has(n.siswa_id)) terpakai.add(n.mata_pelajaran_id);
+  }
+  return db.mata_pelajaran
+    .filter((m) => terpakai.has(m.id))
+    .sort((a, b) => a.urutan - b.urutan);
+}
+
 function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }

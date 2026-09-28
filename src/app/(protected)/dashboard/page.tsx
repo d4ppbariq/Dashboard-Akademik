@@ -16,6 +16,7 @@ import {
   getTrenNilai,
   getRekapNilaiPerSemester,
   getPeringkatMapel,
+  mapelDenganNilai,
   siswaIdsInAngkatan,
   siswaIdsInKelas,
 } from "@/server/service/statistics";
@@ -76,15 +77,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const ringkasan = getRingkasan(db, siswaIdsAngkatan);
   const gender = getGenderDistribution(db, siswaIdsAngkatan);
   const kehadiran = getKehadiranPerSemester(db, siswaIdsAngkatan);
-  const mapels = db.mata_pelajaran;
-  // Hanya mapel yang punya nilai pada angkatan ini. Tanpa ini, mapel kurikulum
-  // lama ikut tampil sebagai garis 0 dan menggeser warna mapel lain.
-  const mapelBerlaku = new Set(
-    db.nilai_siswa
-      .filter((n) => siswaIdsAngkatan.includes(n.siswa_id))
-      .map((n) => n.mata_pelajaran_id)
-  );
-  const trenMapels = mapels.filter((m) => mapelBerlaku.has(m.id));
+  // Hanya mapel yang punya nilai pada angkatan ini. Tanpa penyaringan, mapel
+  // kurikulum lama ikut tampil sebagai garis kosong di TrenLine.
+  const trenMapels = mapelDenganNilai(db, siswaIdsAngkatan);
   const tren = getTrenNilai(db, siswaIdsAngkatan, trenMapels.map((m) => m.id));
   const rekap = getRekapNilaiPerSemester(db, siswaIdsAngkatan, semester).filter(
     (r) => r.nilai !== null

@@ -9,6 +9,7 @@ import {
   getRingkasan,
   getTrenNilai,
   getTrenNilaiSiswa,
+  mapelDenganNilai,
   type RekapNilaiItem,
 } from "./statistics";
 import type { Database } from "@/lib/db/types";
@@ -138,4 +139,63 @@ test("rata-rata kelas dihitung hanya dari mapel yang punya nilai", () => {
 test("RekapNilaiItem menerima null pada tipe level", () => {
   const item: RekapNilaiItem = { kode: "X", mapel: "Y", nilai: null };
   assert.equal(item.nilai, null);
+});
+
+test("mapelDenganNilai hanya mengembalikan mapel yang ada nilainya", () => {
+  const db = dbDengan();
+  const hasil = mapelDenganNilai(db, ["s-1"]);
+  assert.deepEqual(
+    hasil.map((m) => m.kode),
+    ["MTK"],
+    "INF tidak ada nilainya sehingga tidak boleh muncul di chart"
+  );
+});
+
+test("mapelDenganNilai mengabaikan nilai dari angkatan lain", () => {
+  const db = dbDengan();
+  db.siswa.push({ id: "s-2", kelas_id: "k-9", nis: "2", nama: "B", jenis_kelamin: "P" });
+  db.nilai_siswa.push({
+    id: "n-2", siswa_id: "s-2", mata_pelajaran_id: "mp-inf", semester: 1, nilai: 70,
+  });
+  assert.deepEqual(
+    mapelDenganNilai(db, ["s-1"]).map((m) => m.kode),
+    ["MTK"],
+    "nilai siswa lain tidak boleh membuat mapel ini muncul"
+  );
+  assert.deepEqual(
+    mapelDenganNilai(db, ["s-2"]).map((m) => m.kode),
+    ["INF"],
+    "Siswa tanpa nilai MTK tidak boleh memunculkan MTK"
+  );
+});
+
+test("mapelDenganNilai mengurutkan menurut urutan mapel", () => {
+  const db = dbDengan();
+  db.mata_pelajaran.push({
+    id: "mp-aaa", kode: "AAA", nama_mapel: "Awal", urutan: 0,
+  });
+  db.nilai_siswa.push({
+    id: "n-3", siswa_id: "s-1", mata_pelajaran_id: "mp-aaa", semester: 1, nilai: 60,
+  });
+  assert.deepEqual(
+    mapelDenganNilai(db, ["s-1"]).map((m) => m.kode),
+    ["AAA", "MTK"],
+    "urutan 0 harus mendahului urutan 1"
+  );
+});
+
+test("mapelDenganNilai mengembalikan array kosong saat tidak ada nilai", () => {
+  const db = dbDengan();
+  db.nilai_siswa = [];
+  assert.deepEqual(mapelDenganNilai(db, ["s-1"]), []);
+});
+
+test("nilai 0 tetap dihitung sebagai mapel yang berlaku", () => {
+  const db = dbDengan();
+  db.nilai_siswa[0].nilai = 0;
+  assert.deepEqual(
+    mapelDenganNilai(db, ["s-1"]).map((m) => m.kode),
+    ["MTK"],
+    "nilai 0 adalah nilai asli, bukan ketiadaan data"
+  );
 });
