@@ -1,17 +1,22 @@
+import Link from "next/link";
 import { requireRoute } from "@/lib/auth/dal";
 import { getDb } from "@/lib/db/store";
 import { PageHeader } from "@/components/layout/page-header";
 import { SegmentedNav } from "@/components/layout/segmented-nav";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { SiswaDetailDialog } from "@/components/siswa/siswa-detail-dialog";
+import { saringSiswa } from "@/lib/siswa-search";
 
 interface SiswaPageProps {
-  searchParams: Promise<{ angkatan?: string; kelas?: string }>;
+  searchParams: Promise<{ angkatan?: string; kelas?: string; q?: string; semua?: string }>;
 }
 
 export default async function SiswaPage({ searchParams }: SiswaPageProps) {
   await requireRoute("/siswa");
-  const { angkatan: angkatanParam, kelas: kelasParam } = await searchParams;
+  const { angkatan: angkatanParam, kelas: kelasParam, q: qParam, semua } =
+    await searchParams;
 
   const db = await getDb();
   const angkatanList = [...db.angkatan].sort((a, b) => b.tahun_lulus - a.tahun_lulus);
@@ -27,13 +32,27 @@ export default async function SiswaPage({ searchParams }: SiswaPageProps) {
   const kelasId = kelasList.find((k) => k.id === kelasParam)?.id ?? kelasList[0]?.id;
   const kelas = kelasList.find((k) => k.id === kelasId);
 
-  const siswaList = db.siswa
-    .filter((s) => {
-      if (kelasId) return s.kelas_id === kelasId;
-      const angkatanKelasIds = db.kelas.filter((k) => k.angkatan_id === angkatanId).map((k) => k.id);
-      return angkatanKelasIds.includes(s.kelas_id);
-    })
-    .sort((a, b) => a.nama.localeCompare(b.nama));
+  // Mode global: operator tidak menemukan siswa di kelas yang sedang dibuka,
+  // sehingga ia perlu mencari di seluruh sekolah sekaligus.
+  const global = semua === "1";
+  const q = (qParam ?? "").trim();
+
+  // Hoist keluar dari filter: sebelumnya dihitung ulang untuk tiap siswa.
+  const kelasAngkatanIds = new Set(kelasList.map((k) => k.id));
+  const kelasById = new Map(db.kelas.map((k) => [k.id, k]));
+  const namaKelas = new Map(db.kelas.map((k) => [k.id, k.nama_kelas]));
+  const tahunAngkatan = new Map(db.angkatan.map((a) => [a.id, a.tahun_lulus]));
+
+  const siswaList = saringSiswa(
+    db.siswa
+      .filter((s) => {
+        if (global) return true;
+        if (kelasId) return s.kelas_id === kelasId;
+        return kelasAngkatanIds.has(s.kelas_id);
+      })
+      .sort((a, b) => a.nama.localeCompare(b.nama)),
+    q
+  );
 
   const stats = new Map<
     string,
@@ -54,23 +73,52 @@ export default async function SiswaPage({ searchParams }: SiswaPageProps) {
     });
   }
 
+  const kolom = global ? 7 : 6;
+  const labelKonteks = global
+    ? "Mencari di seluruh sekolah"
+    : `Daftar siswa${kelas ? ` kelas ${kelas.nama_kelas}` : ""} · Angkatan ${
+        angkatan?.tahun_lulus ?? "-"
+      }`;
+
   return (
     <div>
       <PageHeader
         title="Pencarian Siswa"
-        description={`Daftar siswa${kelas ? ` kelas ${kelas.nama_kelas}` : ""} · Angkatan ${angkatan?.tahun_lulus}`}
+        description={q ? `${labelKonteks} · ${siswaList.length} cocok dengan "${q}"` : labelKonteks}
+        actions={
+          global ? undefined : (
+            <SegmentedNav
+              param="angkatan"
+              basePath="/siswa"
+              options={angkatanList.map((a) => ({
+                value: a.id,
+                label: `Angkatan ${a.tahun_lulus}`,
+              }))}
+            />
+          )
+        }
       />
 
+      {global && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-dashed bg-muted/40 px-3 py-2 text-sm">
+          <span className="text-muted-foreground">
+            Mode cari semua angkatan. Filter angkatan dan kelas diabaikan.
+          </span>
+          <Button asChild variant="outline" size="sm">
+            <Link
+              href={`/siswa?${new URLSearchParams({
+                ...(angkatanId ? { angkatan: angkatanId } : {}),
+                ...(kelasId ? { kelas: kelasId } : {}),
+              }).toString()}`}
+            >
+              Kembali ke kelas terpilih
+            </Link>
+          </Button>
+        </div>
+      )}
+
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <SegmentedNav
-          param="angkatan"
-          basePath="/siswa"
-          options={angkatanList.map((a) => ({
-            value: a.id,
-            label: `Angkatan ${a.tahun_lulus}`,
-          }))}
-        />
-        {kelas && (
+        {kelas && !global && (
           <SegmentedNav
             param="kelas"
             basePath="/siswa"
@@ -80,6 +128,22 @@ export default async function SiswaPage({ searchParams }: SiswaPageProps) {
             }))}
           />
         )}
+
+        <form action="/siswa" method="get" className="flex gap-2">
+          <input type="hidden" name="angkatan" value={angkatanId ?? ""} />
+          <input type="hidden" name="kelas" value={kelasId ?? ""} />
+          {global && <input type="hidden" name="semua" value="1" />}
+          <Input
+            name="q"
+            defaultValue={qParam ?? ""}
+            placeholder="Cari nama atau NIS..."
+            aria-label="Cari nama atau NIS"
+            className="h-8 w-64"
+          />
+          <Button type="submit" size="sm" className="h-8">
+            Cari
+          </Button>
+        </form>
       </div>
 
       <Card>
@@ -91,6 +155,7 @@ export default async function SiswaPage({ searchParams }: SiswaPageProps) {
                   <th className="p-3 font-medium">NIS</th>
                   <th className="p-3 font-medium">Nama</th>
                   <th className="p-3 font-medium">JK</th>
+                  {global && <th className="p-3 font-medium">Kelas</th>}
                   <th className="p-3 text-right font-medium">Rata-rata Nilai</th>
                   <th className="p-3 text-right font-medium">Total Alpa</th>
                   <th className="p-3 text-right font-medium">Aksi</th>
@@ -105,6 +170,7 @@ export default async function SiswaPage({ searchParams }: SiswaPageProps) {
                       : st.rataNilai >= 70
                         ? "text-amber-600 dark:text-amber-400"
                         : "text-red-600 dark:text-red-400";
+                  const angkatanSiswa = kelasById.get(s.kelas_id);
                   return (
                     <tr key={s.id} className="border-b last:border-0 hover:bg-muted/40">
                       <td className="p-3 tabular-nums text-muted-foreground">{s.nis}</td>
@@ -112,6 +178,16 @@ export default async function SiswaPage({ searchParams }: SiswaPageProps) {
                       <td className="p-3 text-muted-foreground">
                         {s.jenis_kelamin === "L" ? "L" : "P"}
                       </td>
+                      {global && (
+                        <td className="p-3 text-muted-foreground">
+                          {namaKelas.get(s.kelas_id) ?? "-"}
+                          {angkatanSiswa && (
+                            <span className="ml-1 text-xs">
+                              {tahunAngkatan.get(angkatanSiswa.angkatan_id) ?? "-"}
+                            </span>
+                          )}
+                        </td>
+                      )}
                       <td className={`p-3 text-right font-semibold tabular-nums ${nilaiTone}`}>
                         {st.rataNilai}
                       </td>
@@ -128,8 +204,27 @@ export default async function SiswaPage({ searchParams }: SiswaPageProps) {
                 })}
                 {siswaList.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="p-6 text-center text-muted-foreground">
-                      Belum ada siswa di kelas ini.
+                    <td colSpan={kolom} className="p-6 text-center text-muted-foreground">
+                      {q ? (
+                        <span className="flex flex-col items-center gap-3">
+                          <span>
+                            {global
+                              ? `Tidak ada siswa dengan nama atau NIS "${q}" di seluruh sekolah.`
+                              : `Tidak ada siswa yang cocok dengan "${q}" di kelas ${kelas?.nama_kelas ?? "-"} · Angkatan ${angkatan?.tahun_lulus ?? "-"}.`}
+                          </span>
+                          {!global && (
+                            <Button asChild variant="outline" size="sm">
+                              <Link href={`/siswa?q=${encodeURIComponent(q)}&semua=1`}>
+                                Cari di semua angkatan
+                              </Link>
+                            </Button>
+                          )}
+                        </span>
+                      ) : global ? (
+                        "Belum ada siswa yang tercatat di sekolah ini."
+                      ) : (
+                        "Belum ada siswa di kelas ini."
+                      )}
                     </td>
                   </tr>
                 )}
