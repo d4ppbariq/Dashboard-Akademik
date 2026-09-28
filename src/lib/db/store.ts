@@ -100,10 +100,5 @@ export async function resetDb(): Promise<Database> {
   return getDb();
 }
 
-export function newId(prefix: string, list?: unknown[]): string {
-  let id: string;
-  do {
-    id = `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-  } while (list?.some((item) => (item as { id?: string }).id === id));
-  return id;
-}
+export { newId, createIdAllocator, IdAllocator, generateId } from "./id";
+

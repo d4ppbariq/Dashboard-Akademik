@@ -72,27 +72,44 @@ export async function writeDatabase(pool: Pool, seed: Database): Promise<void> {
   }
 }
 
-async function insertRows(
+/**
+ * Batas keras protokol extended PostgreSQL adalah 65.535 parameter per
+ * statement. Kita sisakan margin agar tidak menyentuh batas dan tetap aman
+ * bila kolom bertambah.
+ */
+const MAX_PARAMS_PER_STATEMENT = 60_000;
+
+export function chunkSizeFor(columnCount: number): number {
+  if (columnCount <= 0) return MAX_PARAMS_PER_STATEMENT;
+  return Math.max(1, Math.floor(MAX_PARAMS_PER_STATEMENT / columnCount));
+}
+
+export async function insertRows(
   query: (text: string, values?: unknown[]) => Promise<QueryResult>,
   table: TableData
 ): Promise<void> {
   const columns = table.columns.join(", ");
-  const values: unknown[] = [];
-  const valueGroups: string[] = [];
+  const size = chunkSizeFor(table.columns.length);
 
-  let paramIndex = 1;
-  for (const row of table.rows) {
-    const group: string[] = [];
-    for (const col of table.columns) {
-      group.push(`$${paramIndex}`);
-      values.push(row[col]);
-      paramIndex += 1;
+  for (let start = 0; start < table.rows.length; start += size) {
+    const slice = table.rows.slice(start, start + size);
+    const values: unknown[] = [];
+    const valueGroups: string[] = [];
+
+    let paramIndex = 1;
+    for (const row of slice) {
+      const group: string[] = [];
+      for (const col of table.columns) {
+        group.push(`$${paramIndex}`);
+        values.push(row[col]);
+        paramIndex += 1;
+      }
+      valueGroups.push(`(${group.join(", ")})`);
     }
-    valueGroups.push(`(${group.join(", ")})`);
-  }
 
-  await query(
-    `INSERT INTO "${table.name}" (${columns}) VALUES ${valueGroups.join(", ")}`,
-    values
-  );
+    await query(
+      `INSERT INTO "${table.name}" (${columns}) VALUES ${valueGroups.join(", ")}`,
+      values
+    );
+  }
 }
