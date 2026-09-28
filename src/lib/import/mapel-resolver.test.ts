@@ -12,10 +12,6 @@ import {
 import { MATA_PELAJARAN_DEFAULT } from "@/lib/db/seed";
 
 const mapels: MapelRow[] = MATA_PELAJARAN_DEFAULT;
-const KURIKULUM_LAMA: MapelRow[] = [
-  { id: "mp-sbk", kode: "SBK", nama_mapel: "Seni dan Budaya" },
-  { id: "mp-prk", kode: "PRK", nama_mapel: "Prakarya" },
-];
 
 function kode(kolom: string, list = mapels): string | null {
   return resolveKolom(kolom, list).mapel?.kode ?? null;
@@ -55,22 +51,28 @@ test("alias umum dikenali", () => {
   assert.equal(kode("Mat."), "MTK");
 });
 
-test("kode kurikulum lama hanya cocok bila mapel tersebut ada", () => {
-  assert.equal(kode("SBK", mapels), null, "SBK tidak boleh cocok pada DB 2026");
-  assert.equal(kode("PRK", mapels), null);
-  assert.equal(kode("SBK", [...mapels, ...KURIKULUM_LAMA]), "SBK");
-  assert.equal(kode("Prakarya", [...mapels, ...KURIKULUM_LAMA]), "PRK");
-  assert.equal(kode("Seni dan Budaya", [...mapels, ...KURIKULUM_LAMA]), "SBK");
+test("mapel kurikulum lama sudah ada di katalog dan bisa dicocokkan", () => {
+  // SBK/PRK kini bagian dari katalog global. Penyaringan per angkatan terjadi
+  // di lapisan chart, bukan dengan menyembunyikannya dari resolver.
+  assert.equal(kode("SBK", mapels), "SBK");
+  assert.equal(kode("PRK", mapels), "PRK");
+  assert.equal(kode("Prakarya", mapels), "PRK");
+  assert.equal(kode("Seni dan Budaya", mapels), "SBK");
+});
+
+test("mapel yang tidak ada di katalog tidak bisa dicocokkan", () => {
+  const minim: MapelRow[] = mapels.filter((m) => m.kode !== "SBK" && m.kode !== "PRK");
+  assert.equal(kode("SBK", minim), null, "SBK tidak boleh cocok bila tidak ada di DB");
+  assert.equal(kode("Prakarya", minim), null);
 });
 
 test("Seni dan Seni Musik tidak tertukar", () => {
-  const semua = [...mapels, ...KURIKULUM_LAMA];
-  assert.equal(kode("Seni Musik", semua), "MUS");
-  assert.equal(kode("Seni dan Budaya", semua), "SBK");
-  assert.equal(kode("Seni Budaya", semua), "SBK");
-  assert.equal(kode("Musik", semua), "MUS");
+  assert.equal(kode("Seni Musik", mapels), "MUS");
+  assert.equal(kode("Seni dan Budaya", mapels), "SBK");
+  assert.equal(kode("Seni Budaya", mapels), "SBK");
+  assert.equal(kode("Musik", mapels), "MUS");
   // "Seni" sendiri tidak boleh otomatis jadi salah satu.
-  const r = resolveKolom("Seni", semua);
+  const r = resolveKolom("Seni", mapels);
   assert.equal(r.mapel, null);
 });
 
