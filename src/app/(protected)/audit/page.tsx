@@ -5,12 +5,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 const AKSI_TONE: Record<string, string> = {
-  LOGIN: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-  LOGOUT: "bg-slate-500/10 text-slate-600 dark:text-slate-400",
-  CREATE: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  UPDATE: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  DELETE: "bg-red-500/10 text-red-600 dark:text-red-400",
-  IMPORT: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+  LOGIN: "bg-blue-500/10 text-blue-600",
+  LOGOUT: "bg-slate-500/10 text-slate-600",
+  CREATE: "bg-emerald-500/10 text-emerald-600",
+  UPDATE: "bg-amber-500/10 text-amber-600",
+  DELETE: "bg-red-500/10 text-red-600",
+  IMPORT: "bg-violet-500/10 text-violet-600",
 };
 
 function formatWaktu(iso: string): string {

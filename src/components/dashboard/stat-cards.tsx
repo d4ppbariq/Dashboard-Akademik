@@ -12,9 +12,9 @@ interface StatCardsProps {
 
 const items = [
   { key: "siswa", label: "Total Siswa", color: "text-primary", bg: "bg-primary/10" },
-  { key: "sakit", label: "Sakit", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10" },
-  { key: "izin", label: "Izin", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10" },
-  { key: "alpa", label: "Alpa", color: "text-red-600 dark:text-red-400", bg: "bg-red-500/10" },
+  { key: "sakit", label: "Sakit", color: "text-amber-600", bg: "bg-amber-500/10" },
+  { key: "izin", label: "Izin", color: "text-blue-600", bg: "bg-blue-500/10" },
+  { key: "alpa", label: "Alpa", color: "text-red-600", bg: "bg-red-500/10" },
 ];
 
 const icons = {

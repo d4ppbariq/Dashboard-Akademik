@@ -34,7 +34,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { ThemeToggle } from "./theme-toggle";
 import type { Menu } from "@/lib/db/types";
 
 const ICONS: Record<string, LucideIcon> = {
@@ -131,7 +130,6 @@ export function Topbar({ menus, userNama, roleName }: TopbarProps) {
           SMPN 1 Cibalong
         </p>
       </div>
-      <ThemeToggle />
     </header>
   );
 }

@@ -7,7 +7,6 @@ import { login, type LoginState } from "@/lib/auth/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ThemeToggle } from "@/components/layout/theme-toggle";
 
 export default function LoginPage() {
   const [state, action, pending] = useActionState<LoginState, FormData>(
@@ -45,10 +44,6 @@ export default function LoginPage() {
         </div>
 
         <div className="w-full max-w-md">
-          <div className="mb-6 flex items-center justify-end">
-            <ThemeToggle />
-          </div>
-
           <div className="rounded-xl bg-white p-8 shadow-lg">
             <h2 className="text-center text-2xl font-semibold tracking-tight">
               Masuk

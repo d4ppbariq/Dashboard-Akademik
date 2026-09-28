@@ -166,10 +166,10 @@ export default async function SiswaPage({ searchParams }: SiswaPageProps) {
                   const st = stats.get(s.id)!;
                   const nilaiTone =
                     st.rataNilai >= 80
-                      ? "text-emerald-600 dark:text-emerald-400"
+                      ? "text-emerald-600"
                       : st.rataNilai >= 70
-                        ? "text-amber-600 dark:text-amber-400"
-                        : "text-red-600 dark:text-red-400";
+                        ? "text-amber-600"
+                        : "text-red-600";
                   const angkatanSiswa = kelasById.get(s.kelas_id);
                   return (
                     <tr key={s.id} className="border-b last:border-0 hover:bg-muted/40">
@@ -192,7 +192,7 @@ export default async function SiswaPage({ searchParams }: SiswaPageProps) {
                         {st.rataNilai}
                       </td>
                       <td className="p-3 text-right tabular-nums">
-                        <span className={st.totalAlpa > 5 ? "font-semibold text-red-600 dark:text-red-400" : ""}>
+                        <span className={st.totalAlpa > 5 ? "font-semibold text-red-600" : ""}>
                           {st.totalAlpa}
                         </span>
                       </td>

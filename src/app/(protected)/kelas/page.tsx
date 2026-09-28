@@ -119,7 +119,7 @@ export default async function KelasPage({ searchParams }: KelasPageProps) {
                       <td className="p-3 text-right tabular-nums">
                         {formatNumber(ringkasan.totalSiswa)}
                       </td>
-                      <td className="p-3 text-right font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                      <td className="p-3 text-right font-semibold tabular-nums text-emerald-600">
                         {rataNilai}
                       </td>
                       <td className="p-3 text-right tabular-nums">{formatNumber(ringkasan.totalSakit)}</td>
