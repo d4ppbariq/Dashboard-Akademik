@@ -14,6 +14,11 @@ export const MATA_PELAJARAN_DEFAULT: MataPelajaran[] = [
   { id: "mp-9", kode: "PJK", nama_mapel: "PJOK", urutan: 9 },
   { id: "mp-10", kode: "INF", nama_mapel: "Informatika", urutan: 10 },
   { id: "mp-11", kode: "SUN", nama_mapel: "Bahasa Sunda", urutan: 11 },
+  // Mapel kurikulum lama. Tetap berada di katalog global karena mapel di
+  // sistem ini bukan milik angkatan tertentu; chart menyembunyikannya secara
+  // otomatis bila angkatan terpilih tidak punya nilainya.
+  { id: "mp-12", kode: "SBK", nama_mapel: "Seni dan Budaya", urutan: 12 },
+  { id: "mp-13", kode: "PRK", nama_mapel: "Prakarya", urutan: 13 },
 ];
 
 export const MAPEL_MEAN: Record<string, number> = {
@@ -28,6 +33,8 @@ export const MAPEL_MEAN: Record<string, number> = {
   "mp-9": 88,
   "mp-10": 82,
   "mp-11": 84,
+  "mp-12": 80,
+  "mp-13": 77,
 };
 
 export const MAPEL_SPREAD: Record<string, number> = {
@@ -42,6 +49,8 @@ export const MAPEL_SPREAD: Record<string, number> = {
   "mp-9": 7,
   "mp-10": 9,
   "mp-11": 8,
+  "mp-12": 7,
+  "mp-13": 6,
 };
 
 const NAMA_DEPAN_L = [
