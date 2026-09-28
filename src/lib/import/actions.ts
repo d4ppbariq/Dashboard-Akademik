@@ -1,74 +1,30 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 import { requireAuth, hasPermission } from "@/lib/auth/dal";
-import { getDb, persist, newId } from "@/lib/db/store";
+import { getDb, persist, createIdAllocator } from "@/lib/db/store";
 import { pushAudit } from "@/lib/audit";
 import type { Database } from "@/lib/db/types";
+import { applyRows } from "@/lib/import/apply";
+import {
+  validateRows,
+  type ImportError,
+  type ImportRow,
+  type ImportWarning,
+  type ColumnReport,
+  type SiswaRow,
+} from "@/lib/import/validate";
 
-export interface ImportRow {
-  [key: string]: unknown;
-}
-
-export interface ImportError {
-  baris: number;
-  pesan: string;
-}
+export type { ImportError, ImportRow, ImportWarning };
 
 export interface ImportResult {
   ok: boolean;
   diterima: number;
   ditolak: number;
   errors: ImportError[];
+  warnings: ImportWarning[];
+  columns?: ColumnReport[];
   pesan?: string;
-}
-
-const SEMESTER_MAX = 6;
-
-function rowError(baris: number, pesan: string): ImportError {
-  return { baris, pesan };
-}
-
-function num(v: unknown): number | null {
-  if (typeof v === "number" && Number.isFinite(v)) return v;
-  if (typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v))) {
-    return Number(v);
-  }
-  return null;
-}
-
-function str(v: unknown): string {
-  return String(v ?? "").trim();
-}
-
-function buildMapelIndex(db: Database) {
-  return new Map(db.mata_pelajaran.map((m) => [m.nama_mapel.toLowerCase(), m]));
-}
-
-function extractSemester(r: ImportRow): number | null {
-  return num(r.Semester ?? r.SEMESTER);
-}
-
-function extractAttendance(r: ImportRow) {
-  return {
-    sakit: num(r.Sakit ?? r.SAKIT) ?? 0,
-    izin: num(r.Izin ?? r.IZIN) ?? 0,
-    tanpaKeterangan: num(r["Tanpa Keterangan"] ?? r.TANPA_KETERANGAN ?? r.ALPA) ?? 0,
-  };
-}
-
-function extractGrades(r: ImportRow, mapelIndex: Map<string, { id: string; kode: string }>) {
-  const grades: { mapelId: string; kode: string; nilai: number }[] = [];
-  for (const [key, val] of Object.entries(r)) {
-    if (["NIS", "Nama", "Jenis Kelamin", "Semester", "Sakit", "Izin", "Tanpa Keterangan"].includes(key)) continue;
-    const n = num(val);
-    if (n === null || n < 0 || n > 100) continue;
-    const mapel = mapelIndex.get(key.toLowerCase());
-    if (mapel) {
-      grades.push({ mapelId: mapel.id, kode: mapel.kode, nilai: Math.round(n) });
-    }
-  }
-  return grades;
 }
 
 async function guard(): Promise<{ user: Awaited<ReturnType<typeof requireAuth>>; ok: boolean }> {
@@ -79,63 +35,55 @@ async function guard(): Promise<{ user: Awaited<ReturnType<typeof requireAuth>>;
   return { user, ok: true };
 }
 
+function siswaByNis(db: Database): Map<string, SiswaRow> {
+  const map = new Map<string, SiswaRow>();
+  for (const s of db.siswa) {
+    map.set(s.nis, { id: s.id, kelas_id: s.kelas_id, nis: s.nis, nama: s.nama, jenis_kelamin: s.jenis_kelamin });
+  }
+  return map;
+}
+
+const kosong = (rows: ImportRow[], pesan?: string): ImportResult => ({
+  ok: false,
+  diterima: 0,
+  ditolak: rows.length,
+  errors: [],
+  warnings: [],
+  pesan,
+});
+
 export async function validateImportFlat(
   rows: ImportRow[],
   angkatanId: string,
   kelasId: string
 ): Promise<ImportResult> {
   const g = await guard();
-  if (!g.ok) return { ok: false, diterima: 0, ditolak: rows.length, errors: [], pesan: "Tidak memiliki izin impor" };
+  if (!g.ok) return kosong(rows, "Tidak memiliki izin impor");
 
   const db = await getDb();
-  const mapelIndex = buildMapelIndex(db);
-  const kelasExists = db.kelas.some((k) => k.id === kelasId && k.angkatan_id === angkatanId);
-  if (!kelasExists) {
-    return { ok: false, diterima: 0, ditolak: rows.length, errors: [], pesan: "Kelas atau angkatan tidak valid" };
-  }
+  const kelas = db.kelas.find((k) => k.id === kelasId);
+  if (!kelas) return kosong(rows, "Kelas tidak valid");
+  // Versi lama hanya memvalidasi kelas, sehingga angkatan yang salah tetap
+  // diterima dan tahun lulus salah tercatat di audit log.
+  if (kelas.angkatan_id !== angkatanId) return kosong(rows, "Kelas bukan bagian dari angkatan tersebut");
 
-  const errors: ImportError[] = [];
-  const existingNis = new Set(db.siswa.map((s) => s.nis));
-  const seenNis = new Set<string>();
-  const seenNisSemester = new Set<string>();
-
-  rows.forEach((r, i) => {
-    const baris = i + 2;
-    const nis = str(r.NIS);
-    if (!nis) return errors.push(rowError(baris, "NIS kosong"));
-    if (!str(r.Nama ?? r.NAMA)) return errors.push(rowError(baris, "Nama kosong"));
-
-    const jk = str(r["Jenis Kelamin"] ?? r.JENIS_KELAMIN).toUpperCase();
-    if (jk !== "L" && jk !== "P") return errors.push(rowError(baris, "Jenis Kelamin harus L atau P"));
-
-    const smt = extractSemester(r);
-    if (smt === null || smt < 1 || smt > SEMESTER_MAX) return errors.push(rowError(baris, "Semester harus 1-6"));
-
-    if (!seenNis.has(nis)) {
-      if (existingNis.has(nis)) return errors.push(rowError(baris, `NIS ${nis} sudah terdaftar`));
-    }
-    seenNis.add(nis);
-
-    const nsKey = `${nis}-${smt}`;
-    if (seenNisSemester.has(nsKey)) return errors.push(rowError(baris, `Duplikat NIS ${nis} semester ${smt}`));
-    seenNisSemester.add(nsKey);
-
-    const att = extractAttendance(r);
-    if (att.sakit < 0 || att.izin < 0 || att.tanpaKeterangan < 0) {
-      return errors.push(rowError(baris, "Sakit/Izin/Tanpa Keterangan harus >= 0"));
-    }
-
-    const grades = extractGrades(r, mapelIndex);
-    for (const g of grades) {
-      if (g.nilai < 0 || g.nilai > 100) {
-        return errors.push(rowError(baris, `Nilai ${g.kode} harus 0-100`));
-      }
-    }
+  const result = validateRows(rows, {
+    mapelDb: db.mata_pelajaran,
+    siswaByNis: siswaByNis(db),
+    angkatanId,
+    kelasId,
   });
 
-  const ditolak = errors.length;
-  return { ok: ditolak === 0, diterima: rows.length - ditolak, ditolak, errors };
+  return {
+    ok: result.ok,
+    diterima: result.diterima,
+    ditolak: result.ditolak,
+    errors: result.errors,
+    warnings: result.warnings,
+    columns: result.columns,
+  };
 }
+
 
 export async function applyImportFlat(
   rows: ImportRow[],
@@ -143,65 +91,55 @@ export async function applyImportFlat(
   kelasId: string
 ): Promise<ImportResult> {
   const g = await guard();
-  if (!g.ok) return { ok: false, diterima: 0, ditolak: rows.length, errors: [], pesan: "Tidak memiliki izin impor" };
+  if (!g.ok) return kosong(rows, "Tidak memiliki izin impor");
 
   const db = await getDb();
-  const mapelIndex = buildMapelIndex(db);
   const kelas = db.kelas.find((k) => k.id === kelasId);
-  if (!kelas) return { ok: false, diterima: 0, ditolak: rows.length, errors: [], pesan: "Kelas tidak valid" };
+  if (!kelas) return kosong(rows, "Kelas tidak valid");
+  if (kelas.angkatan_id !== angkatanId) return kosong(rows, "Kelas bukan bagian dari angkatan tersebut");
 
-  let diterima = 0;
+  const result = validateRows(rows, {
+    mapelDb: db.mata_pelajaran,
+    siswaByNis: siswaByNis(db),
+    angkatanId,
+    kelasId,
+  });
 
-  for (const r of rows) {
-    const nis = str(r.NIS);
-    const nama = str(r.Nama ?? r.NAMA);
-    const jk = (str(r["Jenis Kelamin"] ?? r.JENIS_KELAMIN).toUpperCase() === "P" ? "P" : "L") as "L" | "P";
-    const smt = extractSemester(r);
-    if (!nis || !nama || smt === null) continue;
-
-    let siswa = db.siswa.find((s) => s.nis === nis);
-    if (!siswa) {
-      const id = newId("s", db.siswa);
-      siswa = { id, kelas_id: kelasId, nis, nama, jenis_kelamin: jk };
-      db.siswa.push(siswa);
-    }
-
-    const att = extractAttendance(r);
-    db.kehadiran_siswa = db.kehadiran_siswa.filter(
-      (k) => !(k.siswa_id === siswa!.id && k.semester === smt)
-    );
-    db.kehadiran_siswa.push({
-      id: newId("k", db.kehadiran_siswa),
-      siswa_id: siswa.id,
-      semester: smt,
-      sakit: att.sakit,
-      izin: att.izin,
-      tanpa_keterangan: att.tanpaKeterangan,
-    });
-
-    const grades = extractGrades(r, mapelIndex);
-    for (const g of grades) {
-      db.nilai_siswa = db.nilai_siswa.filter(
-        (n) => !(n.siswa_id === siswa!.id && n.mata_pelajaran_id === g.mapelId && n.semester === smt)
-      );
-      db.nilai_siswa.push({
-        id: newId("n", db.nilai_siswa),
-        siswa_id: siswa.id,
-        mata_pelajaran_id: g.mapelId,
-        semester: smt,
-        nilai: g.nilai,
-      });
-    }
-
-    diterima += 1;
+  // All-or-nothing: satu baris cacat berarti tidak ada yang ditulis sama sekali.
+  if (!result.ok) {
+    return {
+      ok: false,
+      diterima: 0,
+      ditolak: result.ditolak,
+      errors: result.errors,
+      warnings: result.warnings,
+      columns: result.columns,
+      pesan: "Impor dibatalkan karena ada baris yang tidak valid; tidak ada data yang ditulis",
+    };
   }
+
+  // Menjalankan persist() berarti TRUNCATE + tulis ulang seluruh tabel, jadi
+  // file kosong tidak boleh memicu penulisan apa pun.
+  if (result.rows.length === 0) {
+    return {
+      ok: true,
+      diterima: 0,
+      ditolak: 0,
+      errors: [],
+      warnings: result.warnings,
+      columns: result.columns,
+      pesan: "Tidak ada baris untuk diproses; tidak ada perubahan data",
+    };
+  }
+
+  applyRows(db, result.rows, kelasId, createIdAllocator(db));
 
   pushAudit(db, {
     user_id: g.user.id,
     user_nama: g.user.nama,
     aksi: "IMPORT",
     entitas: "gabungan",
-    detail: `Import ${kelas.nama_kelas} (${db.angkatan.find((a) => a.id === angkatanId)?.tahun_lulus ?? angkatanId}): ${diterima} baris diproses`,
+    detail: `Import ${kelas.nama_kelas} (${db.angkatan.find((a) => a.id === angkatanId)?.tahun_lulus ?? angkatanId}): ${result.diterima} baris diproses${result.hasAttendanceSection ? "" : " (tanpa kolom kehadiran)"}`,
   });
   await persist(db);
 
@@ -210,5 +148,12 @@ export async function applyImportFlat(
   revalidatePath("/siswa");
   revalidatePath("/akademik");
 
-  return { ok: true, diterima, ditolak: rows.length - diterima, errors: [] };
+  return {
+    ok: true,
+    diterima: result.diterima,
+    ditolak: 0,
+    errors: [],
+    warnings: result.warnings,
+    columns: result.columns,
+  };
 }
