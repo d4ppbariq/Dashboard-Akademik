@@ -1,17 +1,23 @@
-ope# PRODUCT REQUIREMENTS DOCUMENT (PRD)
+# PRODUCT REQUIREMENTS DOCUMENT (PRD)
 
 ## Dashboard Akademik Nesaciba
 
-**STATUS: DRAFT SEMENTARA**
+**STATUS: SUPERSEDED - DIGANTIKAN VERSI v1.0**
+
+> Dokumen ini disimpan **semata-mata sebagai arsip**. Isinya sudah tidak
+> selaras dengan implementasi: masih menyebut Supabase sebagai basis data,
+> 11 mata pelajaran, tema gelap, dan alur impor "proses baris valid".
+> Acuan aktif ada di `PRD_Dashboard_Akademik_SMPN1_Cibalong_v1.0.md`.
 
 |||
 |-|-|
 |**Nama Produk**|Dashboard Akademik SMPN 1 Cibalong (Nesaciba)|
-|**Versi Dokumen**|v0.3|
+|**Versi Dokumen**|v0.3 (arsip)|
+|**Digantikan oleh**|`PRD_Dashboard_Akademik_SMPN1_Cibalong_v1.0.md`|
 |**Disusun oleh**|Tim Pengembang (Pengembang)|
 |**Untuk**|SMPN 1 Cibalong (Klien)|
 |**Tanggal**|16 Agustus 2026|
-|**Dokumen Terkait**|Catatan Diskusi Kebutuhan Sistem — DASHBOARD_AKADEMIK_NESACIBA.txt|
+|**Dokumen Terkait**|Catatan Diskusi Kebutuhan Sistem - `DASHBOARD_AKADEMIK_NESACIBA.txt`|
 
 ---
 

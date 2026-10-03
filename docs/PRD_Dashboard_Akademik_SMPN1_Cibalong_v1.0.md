@@ -7,11 +7,11 @@
 |||
 |-|-|
 |**Nama Produk**|Dashboard Akademik SMPN 1 Cibalong (Nesaciba)|
-|**Versi Dokumen**|v1.0|
+|**Versi Dokumen**|v1.0 · Revisi 2|
 |**Disusun oleh**|Tim Pengembang (Pengembang)|
 |**Untuk**|SMPN 1 Cibalong (Klien)|
-|**Tanggal**|19 September 2026|
-|**Dokumen Terkait**|PRD v0.3 — `PRD_Dashboard_Akademik_SMPN1_Cibalong_v0.3.md` (versi sebelumnya, belum selaras dengan implementasi); `README.md`; `src/lib/db/schema.sql`|
+|**Tanggal**|29 September 2026|
+|**Dokumen Terkait**|PRD v0.3 — `PRD_Dashboard_Akademik_SMPN1_Cibalong_v0.3.md` (versi sebelumnya, sudah digantikan); `ML_Roadmap_Capstone.md`; `Protokol_Evaluasi_A1.md`; `README.md`; `src/lib/db/schema.sql`; `src/lib/db/migrations/README.md`|
 
 ---
 
@@ -21,9 +21,9 @@ SMPN 1 Cibalong membutuhkan sistem terpusat untuk memantau performa akademik dan
 
 Untuk menjawab kebutuhan tersebut, dibangun sistem web **Dashboard Akademik Nesaciba** berbasis **Next.js 16 (App Router/Turbopack), React 19, TypeScript, dan Tailwind CSS** dengan pustaka UI **shadcn/ui** serta grafik **Recharts**, yang menyimpan data di **PostgreSQL** (diakses langsung melalui driver `pg`, dikelola menggunakan DBeaver). Sistem dibangun dengan skema data berjenjang **Angkatan → Kelas → Siswa** dan modul **RBAC dinamis berbasis data**.
 
-Sistem memungkinkan operator mengelola master data (angkatan, kelas, mata pelajaran), data siswa, nilai (6 semester × 11 mata pelajaran), dan kehadiran melalui **impor file Excel/CSV** per target angkatan+kelas serta **input manual (CRUD)** melalui aplikasi web. Guru dan operator dapat memantau performa akademik melalui rangkaian visualisasi interaktif (distribusi gender, kehadiran, tren nilai, rekap nilai, dan peringkat mata pelajaran) di level angkatan, level kelas, dan level individu siswa.
+Sistem memungkinkan operator mengelola master data (angkatan, kelas, mata pelajaran), data siswa, nilai (6 semester × 13 mata pelajaran dalam katalog, ±11 yang berlaku per angkatan), dan kehadiran melalui **impor file Excel/CSV** per target angkatan+kelas serta **input manual (CRUD)** melalui aplikasi web. Guru dan operator dapat memantau performa akademik melalui rangkaian visualisasi interaktif (distribusi gender, kehadiran, tren nilai, rekap nilai, dan peringkat mata pelajaran) di level angkatan, level kelas, dan level individu siswa.
 
-Perubahan penting versi ini dibandingkan PRD v0.3: (1) migrasi penyimpanan dari Supabase ke **PostgreSQL langsung**, (2) penyesuaian model data (skema tabel PascalCase, siswa tanpa kolom `status_aktif`, mapel memakai `kode` + `urutan`), (3) konsolidasi dashboard level kelas ke dalam Dashboard Utama dan penambahan halaman **Rekap Akademik** sebagai tabel perbandingan antar-kelas, serta (4) perubahan alur import menjadi format **satu sheet datar** dengan tombol proses untuk baris yang valid.
+Perubahan penting versi ini dibandingkan PRD v0.3: (1) migrasi penyimpanan dari Supabase ke **PostgreSQL langsung**, (2) penyesuaian model data (skema tabel PascalCase, siswa tanpa kolom `status_aktif`, mapel memakai `kode` + `urutan`), (3) konsolidasi dashboard level kelas ke dalam Dashboard Utama dan penambahan halaman **Rekap Akademik** sebagai tabel perbandingan antar-kelas, (4) perubahan alur import menjadi format **satu sheet datar** dengan tombol proses untuk baris yang valid, (5) katalog mapel bertambah menjadi **13 mapel** — 11 mapel kurikulum aktif ditambah SBK dan Prakarya sebagai mapel kurikulum lama, (6) mapel tanpa data **dibedakan dari nilai 0** di seluruh perhitungan statistik dan grafik, (7) impor menjadi **all-or-nothing** (bukan lagi "proses baris valid"), ditambah **laporan kualitas kolom** dan resolusi otomatis kolom mapel, (8) **pencarian siswa** berdasarkan nama/NIS beserta mode cari lintas angkatan, (9) manajemen permission, menu, dan rute menjadi **read-only** (hanya ubah deskripsi), dan (10) dukungan **tema gelap dihapus** — aplikasi hanya menyediakan tema terang.
 
 # 2. Tujuan & Sasaran (Goals)
 
@@ -37,7 +37,7 @@ Perubahan penting versi ini dibandingkan PRD v0.3: (1) migrasi penyimpanan dari 
 
 # 3. Pengguna & Peran (Users & Roles)
 
-* **Superadmin :** Mengelola konfigurasi inti sistem — manajemen pengguna (buat, nonaktifkan, reset password, hapus), role, permission, menu, dan rute. Memiliki akses penuh terhadap seluruh modul sistem. Sistem melindungi akun superadmin terakhir (tidak dapat dinonaktifkan/dihapus) serta akun yang sedang login.
+* **Superadmin :** Mengelola konfigurasi inti sistem — manajemen pengguna (buat, nonaktifkan, reset password, hapus), role, permission, menu, dan rute. Memiliki akses penuh terhadap seluruh modul sistem. Sistem melindungi akun superadmin terakhir (tidak dapat dinonaktifkan/dihapus) serta akun yang sedang login. Daftar **permission, menu, dan rute bersifat read-only** (kode/path/method tidak dapat ditambah, diubah, atau dihapus dari UI); yang dapat diedit hanya kolom **deskripsi**, sedangkan penempatan permission/menu/rute ke role tetap dilakukan melalui dialog rincian role.
 * **Operator :** Mengelola data akademik dan kehadiran — mengimpor data nilai dan kehadiran dari file Excel/CSV, melakukan CRUD data siswa, nilai, dan kehadiran secara manual di web, mengelola master data (Angkatan, Kelas, dan Mata Pelajaran), serta melakukan pembersihan data satu kelas ("clear kelas"). Terdapat satu akun operator pada versi awal.
 * **Guru :** Peran read-only. Memantau performa akademik dan kehadiran melalui Dashboard Utama (level angkatan/kelas), Rekap Akademik (level kelas), dan Pencarian Siswa (level individu). Akun guru bersifat umum/bersama, tidak dibuat per nama guru.
 
@@ -46,23 +46,24 @@ Perubahan penting versi ini dibandingkan PRD v0.3: (1) migrasi penyimpanan dari 
 ## 4.1 Termasuk (MVP)
 
 * Autentikasi login (email + password) dengan sesi JWT di cookie `httpOnly` (masa berlaku 7 hari), hash password SHA-256, serta pencatatan login/logout ke audit log.
-* RBAC yang dikonfigurasi berbasis data: manajemen **user** (buat, aktifkan/nonaktifkan, reset password, hapus), **role** (melihat rincian serta menetapkan permission, menu, dan rute yang diakses role), **permission** (tambah/hapus), **menu** (tambah/hapus), dan **route** (tambah/hapus). Proteksi halaman dan aksi memakai `requireRoute`/`hasPermission` tanpa hardcode daftar hak akses pada komponen UI.
-* Manajemen master data: **Angkatan** (tahun lulus; penambahan angkatan otomatis membuat 6 kelas default A–F), **Kelas** (satu huruf kapital, terikat pada angkatan), dan **Mata Pelajaran** (kode + nama, terurut; 11 mapel default di-seed).
-* Impor data nilai dan kehadiran dari file `.xlsx`/`.xls`/`.csv` (satu sheet datar, kolom NIS, Nama, Jenis Kelamin, Semester, Sakit, Izin, Tanpa Keterangan, lalu kolom per mapel), lengkap dengan tabel preview, validasi per baris (penandaan baris error), tombol proses untuk baris yang valid, serta unduh template Excel standar.
-* CRUD manual data **siswa** (NIS, Nama, Jenis Kelamin) dengan filter Angkatan dan Kelas, aksi hapus per siswa, dan aksi "clear kelas".
+* RBAC yang dikonfigurasi berbasis data: manajemen **user** (buat, aktifkan/nonaktifkan, reset password, hapus), **role** (melihat rincian serta menetapkan permission, menu, dan rute yang diakses role), dan daftar **permission**, **menu**, serta **route** dalam mode **read-only** (hanya ubah deskripsi). Proteksi halaman dan aksi memakai `requireRoute`/`hasPermission` tanpa hardcode daftar hak akses pada komponen UI.
+* Manajemen master data: **Angkatan** (tahun lulus; penambahan angkatan otomatis membuat 6 kelas default A–F), **Kelas** (satu huruf kapital, terikat pada angkatan), dan **Mata Pelajaran** (kode + nama, terurut; **13 mapel default** di-seed).
+* Impor data nilai dan kehadiran dari file `.xlsx`/`.xls`/`.csv` (satu sheet datar, kolom NIS, Nama, Jenis Kelamin, Semester, kolom kehadiran opsional, lalu kolom per mapel **berkode**), lengkap dengan tabel preview, validasi per baris (penandaan baris error dan peringatan), tombol proses **all-or-nothing**, **laporan kualitas kolom**, serta unduh template Excel standar.
+* CRUD manual data **siswa** (NIS, Nama, Jenis Kelamin) dengan filter Angkatan dan Kelas, **pencarian nama/NIS** dengan mode cari lintas angkatan, aksi hapus per siswa, dan aksi "clear kelas".
 * CRUD manual **nilai** (per mapel per semester) dan **kehadiran** (sakit/izin/alpa per semester) melalui dialog pada detail siswa.
 * **Dashboard Utama** (level angkatan & kelas): kartu ringkasan (Total Siswa, Sakit, Izin, Alpa) dan 5 grafik — distribusi gender (donut), rekapitulasi kehadiran per semester (grouped bar), tren nilai rata-rata 11 mapel per semester (line), rekap nilai semua mapel per semester (vertical bar), peringkat nilai mapel tertinggi–terendah per semester (horizontal bar); filter berjenjang Angkatan dan Kelas ("Semua Kelas" atau satu kelas).
 * **Rekap Akademik** (level kelas): tabel perbandingan seluruh kelas dalam satu angkatan (Kelas, Siswa, Rata-rata Nilai, Sakit, Izin, Alpa, Terbaik, Terendah) plus kartu rincian rata-rata nilai per mapel per kelas.
 * **Pencarian Siswa** (level individu): tabel daftar siswa per angkatan/kelas (NIS, Nama, Jenis Kelamin, Rata-rata Nilai, Total Alpa) dan **popup detail siswa** berisi identitas siswa, ringkasan kehadiran, serta dua tab (Nilai dan Kehadiran) berisi grafik dan tabel rincian yang dapat diedit operator.
 * **Contoh / Pratinjau**: galeri jenis-jenis grafik yang tersedia, diisi data aktual angkatan terakhir sebagai referensi visual.
 * **Audit log**: pencatatan dan halaman penelusuran aktivitas (CREATE, UPDATE, DELETE, IMPORT, LOGIN, LOGOUT) hingga 200 entri terakhir.
-* Pustaka komponen UI reusable (button, card, dialog, select, input, label, badge, skeleton, tabs, switch, sonner) dan konfigurasi styling global (dark/light theme).
-* Data layer modular: `store` (baca seluruh dataset), `write` (persistensi), `types`, `schema.sql`, action files per modul, dan service statistik terpisah.
-* Seed data awal: RBAC (3 role, 3 user default, permission, menu, route, dan mapping) serta 11 mata pelajaran default; data akademik sengaja dibiarkan kosong dan diisi oleh operator melalui aplikasi.
+* Pustaka komponen UI reusable (button, card, dialog, sheet, select, input, label, badge, skeleton, tabs, switch, sonner) dengan tema terang saja.
+* Data layer modular: `store` (baca seluruh dataset), `write` (persistensi), `normalize` (normalisasi baris PostgreSQL), `types`, `schema.sql`, action files per modul, dan service statistik terpisah.
+* Unit test dengan `node:test` + `tsx` untuk modul murni: normalisasi baris, penulisan batch, validasi impor, resolusi kolom mapel, penulisan hasil impor, pencarian siswa, dan perhitungan statistik.
+* Seed data awal: RBAC (3 role, 3 user default, permission, menu, route, dan mapping) serta **13 mata pelajaran** default; data akademik sengaja dibiarkan kosong dan diisi oleh operator melalui aplikasi.
 
 ## 4.2 Di Luar Lingkup Awal / Fase Lanjutan
 
-Fitur grafik perbandingan nilai antar-angkatan dan fitur ekspor laporan (PDF/Excel) ditunda ke fase lanjutan (lihat Bab 11). Pencarian siswa saat ini berbasis penjelajahan per kelas, bukan pencarian teks bebas nama/NIS. Pembuatan role baru secara dinamis belum tersedia (role dibuat melalui seed; pengaturan hak dilakukan per role yang sudah ada).
+Fitur grafik perbandingan nilai antar-angkatan dan fitur ekspor laporan (PDF/Excel) ditunda ke fase lanjutan (lihat Bab 11). Pembuatan role baru secara dinamis belum tersedia (role dibuat melalui seed; pengaturan hak dilakukan per role yang sudah ada). Fotografi profil siswa pada popup detail siswa belum diimplementasikan.
 
 # 5. Asumsi & Batasan (Assumptions & Constraints)
 
@@ -74,7 +75,7 @@ Fitur grafik perbandingan nilai antar-angkatan dan fitur ekspor laporan (PDF/Exc
 * Fitur ekspor laporan (PDF/Excel) tidak disediakan pada versi MVP.
 * [Asumsi] Keputusan lingkungan hosting produksi (server milik sekolah atau layanan cloud) ditunda; koneksi diatur melalui `DATABASE_URL` di `.env`, sehingga aplikasi platform-agnostic.
 * Hanya terdapat satu akun operator aktif pada versi awal; akun guru bersifat umum dan dipakai bersama, bukan per individu guru.
-* Struktur data mengikuti hierarki Angkatan → Kelas (satu huruf A–Z) → Siswa, dengan 11 mata pelajaran default: PABP, PPKn, B. Indonesia, B. Inggris, Matematika, IPA, IPS, Seni Musik, PJOK, Informatika, dan B. Sunda (masing-masing memiliki `kode` unik dan `urutan`).
+* Struktur data mengikuti hierarki Angkatan → Kelas (satu huruf A–Z) → Siswa, dengan **13 mata pelajaran default** dalam katalog global: 11 mapel kurikulum aktif — PABP, PPKn, B. Indonesia, B. Inggris, Matematika, IPA, IPS, Seni Musik, PJOK, Informatika, dan B. Sunda — ditambah **SBK (Seni dan Budaya)** dan **PRK (Prakarya)** sebagai mapel kurikulum lama. Katalog bersifat global dan bukan milik angkatan tertentu; mapel yang tidak punya nilai pada angkatan terpilih otomatis disembunyikan dari seluruh grafik.
 * Password di-hash dengan SHA-256 tanpa salt; sesi bertahan 7 hari (peningkatan ke skema hash yang lebih kuat menjadi pertimbangan fase lanjutan).
 * Pola persistensi saat ini menulis ulang seluruh dataset dalam satu transaksi (TRUNCATE + insert ulang); pola ini diterima untuk skala data sekolah (±1.000 siswa) dan dicatat sebagai batasan yang perlu dipantau.
 
@@ -88,9 +89,9 @@ Fitur grafik perbandingan nilai antar-angkatan dan fitur ekspor laporan (PDF/Exc
 |**RBAC-2**|Superadmin dapat mengaktifkan/menonaktifkan akun pengguna; akun nonaktif tidak dapat login; akun sendiri tidak dapat dinonaktifkan|**Wajib**|
 |**RBAC-3**|Superadmin dapat mereset password akun pengguna lain|**Wajib**|
 |**RBAC-4**|Superadmin dapat menghapus akun pengguna, kecuali akun superadmin terakhir dan akun yang sedang login|**Wajib**|
-|**RBAC-5**|Superadmin dapat mengelola daftar permission (tambah/hapus) dan menetapkan permission per role melalui dialog rincian role|**Wajib**|
-|**RBAC-6**|Superadmin dapat mengelola daftar menu sidebar (tambah/hapus; atribut nama, path, ikon, urutan, grup) dan menetapkan menu per role|**Wajib**|
-|**RBAC-7**|Superadmin dapat mengelola daftar rute (path + method HTTP, tambah/hapus) dan menetapkan rute per role|**Wajib**|
+|**RBAC-5**|Superadmin dapat melihat daftar permission beserta jumlah role yang memakainya, mengubah **deskripsi** permission, serta menetapkan permission per role melalui dialog rincian role. Kode permission bersifat read-only (tambah/hapus tidak tersedia dari UI)|**Wajib**|
+|**RBAC-6**|Superadmin dapat melihat daftar menu sidebar (nama, path, ikon, urutan, grup), mengubah **deskripsi**, serta menetapkan menu per role melalui dialog rincian role. Tambah/hapus menu dari UI tidak tersedia|**Wajib**|
+|**RBAC-7**|Superadmin dapat melihat daftar rute (path + method HTTP), mengubah **deskripsi**, serta menetapkan rute per role melalui dialog rincian role. Tambah/hapus rute dari UI tidak tersedia|**Wajib**|
 |**RBAC-8**|Sistem merender menu sidebar sesuai role yang login; halaman tanpa akses rute diarahkan ke `/dashboard`|**Wajib**|
 |**RBAC-9**|Sistem memproteksi aksi server (import, CRUD akademik, master, konfigurasi RBAC) dengan pemeriksaan permission sesuai role|**Wajib**|
 
@@ -101,7 +102,7 @@ Fitur grafik perbandingan nilai antar-angkatan dan fitur ekspor laporan (PDF/Exc
 |**MSTR-1**|Operator dapat menambahkan Angkatan (tahun lulus 2000–2100); penambahan otomatis membuat 6 kelas default A–F; tahun tidak boleh duplikat|**Wajib**|
 |**MSTR-2**|Operator dapat menghapus Angkatan beserta seluruh data turunannya (kelas, siswa, nilai, kehadiran)|**Wajib**|
 |**MSTR-3**|Operator dapat menambah/menghapus Kelas (nama satu huruf kapital A–Z, unik per angkatan)|**Wajib**|
-|**MSTR-4**|Operator dapat menambah/menghapus Mata Pelajaran (kode unik kapital tanpa spasi maks. 5 karakter, dan nama)|**Wajib**|
+|**MSTR-4**|Operator dapat menambah/menghapus Mata Pelajaran (kode unik huruf/angka kapital tanpa spasi, maksimal 5 karakter, dan nama)|**Wajib**|
 |**MSTR-5**|Daftar mata pelajaran tidak di-hardcode di kode dan dapat diubah pada runtime|**Penting**|
 
 ## 6.3 Operator — Import Data Excel
@@ -109,14 +110,16 @@ Fitur grafik perbandingan nilai antar-angkatan dan fitur ekspor laporan (PDF/Exc
 |**ID**|**Kebutuhan Fungsional**|**Prioritas**|
 |-|-|-|
 |**IMPT-1**|Operator dapat mengunggah file `.xlsx`, `.xls`, atau `.csv` berisi data nilai dan kehadiran untuk satu target Angkatan + Kelas|**Wajib**|
-|**IMPT-2**|Format file berupa satu sheet datar dengan kolom: NIS, Nama, Jenis Kelamin (L/P), Semester (1–6), Sakit, Izin, Tanpa Keterangan, lalu satu kolom per nama mata pelajaran|**Wajib**|
-|**IMPT-3**|Sistem menampilkan tabel preview (10 baris pertama) isi file sebelum data diproses|**Wajib**|
-|**IMPT-4**|Sistem memvalidasi setiap baris (NIS/tidak boleh kosong, nama kosong, JK bukan L/P, semester di luar 1–6, nilai di luar 0–100, NIS sudah terdaftar, NIS duplikat per semester, dsb.) dan menampilkan daftar error per baris|**Wajib**|
-|**IMPT-5**|Operator dapat memproses baris yang valid dengan tombol "Proses N Baris"; baris valid disimpan, baris error ditolak|**Wajib**|
-|**IMPT-6**|Impor bersifat *upsert*: siswa baru dibuat bila NIS belum ada; nilai dan kehadiran semester terkait diperbarui bila sudah ada|**Wajib**|
-|**IMPT-7**|Operator dapat mengunduh template Excel standar (`/api/import/template`) sebagai acuan pengisian|**Wajib**|
+|**IMPT-2**|Format file berupa satu sheet datar dengan kolom struktural: NIS, Nama, Jenis Kelamin (L/P), dan Semester (1–6), lalu kolom per mata pelajaran yang **diidentifikasi dengan `kode` mapel** (contoh `MTK`, `BIN`). Kolom kehadiran (Sakit, Izin, Tanpa Keterangan) bersifat **opsional** dan dideteksi otomatis dari isi file|**Wajib**|
+|**IMPT-3**|Sistem menampilkan tabel preview (10 baris pertama) isi file sebelum data diproses, **tanpa menunggu** operator memilih angkatan dan kelas terlebih dahulu|**Wajib**|
+|**IMPT-4**|Sistem memvalidasi setiap baris dan menampilkan daftar error per baris. Error: NIS kosong, nama kosong, JK bukan L/P, semester di luar 1–6, nilai di luar 0–100, duplikat NIS pada semester yang sama di dalam satu file, dan NIS yang sudah terdaftar **di kelas lain** (perpindahan kelas harus lewat menu Siswa). Peringatan (bukan error): nilai non-numerik dilewati, kolom kehadiran yang tidak ada diisi 0, dan kolom yang tidak dikenali sebagai mapel diabaikan dengan saran nama terdekat|**Wajib**|
+|**IMPT-5**|**All-or-nothing.** Bila terdapat satu saja baris cacat, **tidak ada baris yang ditulis** ke database dan angka "siap diproses" menjadi 0. Bila seluruh baris valid, operator menekan tombol "Proses N Baris" untuk menyimpan semuanya|**Wajib**|
+|**IMPT-6**|Impor bersifat *upsert*: siswa baru dibuat bila NIS belum ada; nilai dan kehadiran semester terkait diperbarui bila sudah ada. Bila file tidak memuat section kehadiran, data kehadiran yang sudah ada **tidak** ditimpa|**Wajib**|
+|**IMPT-7**|Operator dapat mengunduh template Excel standar (`/api/import/template`) yang memakai kolom mapel **berkode** sebagai acuan pengisian|**Wajib**|
 |**IMPT-8**|Setiap proses impor dicatat ke audit log (aksi IMPORT) dan halaman terkait di-refresh|**Wajib**|
 |**IMPT-9**|Halaman impor hanya dapat diakses dan dieksekusi oleh pengguna dengan permission `import.execute`|**Wajib**|
+|**IMPT-10**|Sistem menampilkan **laporan kualitas kolom**: daftar kolom mapel yang dikenali, jumlah baris terisi per kolom, serta peringatan bila ada kolom mapel yang **tidak terisi sama sekali** (indikasi nama kolom salah ketik)|**Wajib**|
+|**IMPT-11**|Sistem me-*resolve* kolom mapel secara berjenjang dari **kode**, nama persis, alias/penamaan umum, hingga pencocokan kemiripan; kolom yang gagal dikenali dilaporkan sebagai peringatan beserta saran, bukan diam-diam diabaikan|**Wajib**|
 
 ## 6.4 Operator — Kelola Data Akademik (CRUD Manual)
 
@@ -151,6 +154,7 @@ Fitur grafik perbandingan nilai antar-angkatan dan fitur ekspor laporan (PDF/Exc
 |**DASH-7**|Sistem menampilkan grafik vertical bar rekap nilai rata-rata seluruh mapel, dengan filter semester|**Wajib**|
 |**DASH-8**|Sistem menampilkan grafik horizontal bar peringkat nilai mapel tertinggi–terendah, dengan filter semester|**Wajib**|
 |**DASH-9**|Ketika kelas tertentu dipilih, kelima grafik dikalkulasi khusus dari data kelas tersebut (berikut kartu ringkasan kelas)|**Wajib**|
+|**DASH-10**|Mapel yang **tidak punya nilai sama sekali** pada cakupan terpilih **tidak muncul** di seluruh grafik. Mapel yang punya nilai tetap dihitung dari baris yang ada; nilai 0 adalah nilai asli dan tidak boleh diperlakukan sebagai "tidak ada data"|**Wajib**|
 
 ## 6.7 Guru & Operator — Rekap Akademik (Level Kelas)
 
@@ -164,13 +168,14 @@ Fitur grafik perbandingan nilai antar-angkatan dan fitur ekspor laporan (PDF/Exc
 
 |**ID**|**Kebutuhan Fungsional**|**Prioritas**|
 |-|-|-|
-|**SIS-1**|Pengguna dapat menjelajahi siswa berdasarkan filter Angkatan dan Kelas|**Wajib**|
+|**SIS-1**|Pengguna dapat menjelajahi siswa berdasarkan filter Angkatan dan Kelas, atau mengaktifkan **mode cari di seluruh angkatan** (filter angkatan dan kelas diabaikan)|**Wajib**|
 |**SIS-2**|Tabel daftar siswa menampilkan NIS, Nama, Jenis Kelamin, Rata-rata Nilai, dan Total Alpa (dengan penanda warna sesuai rentang nilai)|**Wajib**|
 |**SIS-3**|Popup detail siswa menampilkan identitas siswa (NIS, Nama, Kelas, Angkatan, Jenis Kelamin) dan ringkasan kehadiran (Sakit/Izin/Alpa)|**Wajib**|
 |**SIS-4**|Tab "Nilai" menampilkan grafik vertical bar nilai asli seluruh mapel pada semester terpilih, tabel peringkat per semester, dan CRUD nilai per baris|**Wajib**|
 |**SIS-5**|Tab "Kehadiran" menampilkan grafik grouped bar riwayat kehadiran 6 semester dan tabel rincian kehadiran per semester|**Wajib**|
 |**SIS-6**|Operator dapat menambah/mengubah/menghapus nilai dan kehadiran langsung dari popup detail siswa|**Wajib**|
 |**SIS-7**|Data popup detail diambil secara real-time melalui endpoint API `/api/siswa/:id`|**Wajib**|
+|**SIS-8**|Pengguna dapat menyaring daftar siswa dengan kotak pencarian: **nama** dicocokkan dengan `contains` (tanpa mengingat urutan ejaan), **NIS** dicocokkan dengan `prefix` (diketik dari digit awal agar NIS yang tidak relevan tidak muncul). Kueri kosong tidak menyaring apa pun. Pencarian dijalankan di sisi server dan dapat bekerja lintas angkatan saat mode cari semua angkatan aktif|**Wajib**|
 
 ## 6.9 Guru & Operator — Contoh / Pratinjau
 
@@ -183,18 +188,18 @@ Fitur grafik perbandingan nilai antar-angkatan dan fitur ekspor laporan (PDF/Exc
 ## 7.1 Operator Mengimpor Data Nilai dan Kehadiran
 
 1. Operator membuka menu **Import Data Excel**.
-2. (Opsional) Operator mengunduh template Excel standar sebagai acuan format kolom.
-3. Operator memilih Angkatan dan Kelas tujuan data melalui dropdown.
-4. Operator mengunggah file `.xlsx`/`.xls`/`.csv` sesuai format kolom (NIS, Nama, Jenis Kelamin, Semester, Sakit, Izin, Tanpa Keterangan, dan kolom per mapel).
-5. Sistem membaca file (di sisi klien dengan `@e965/xlsx`), menampilkan tabel preview 10 baris pertama, dan memvalidasi setiap baris melalui aksi server.
-6. Baris bermasalah ditampilkan di tabel error (Baris + Keterangan); bagian atas menampilkan ringkasan "N diterima · M ditolak".
-7. Jika terdapat baris valid, tombol **Proses N Baris** aktif; Operator menekannya untuk menyimpan baris valid (siswa dibuat bila baru, nilai/kehadiran di-upsert).
+2. (Opsional) Operator mengunduh template Excel standar sebagai acuan format kolom (kolom mapel memakai `kode`).
+3. Operator mengunggah file `.xlsx`/`.xls`/`.csv` sesuai format kolom. Section kehadiran bersifat opsional — bila file tidak punya kolom Sakit, Izin, Tanpa Keterangan, data kehadiran yang sudah ada tidak disentuh.
+4. Sistem membaca file (di sisi klien dengan `@e965/xlsx`) dan langsung menampilkan tabel preview 10 baris pertama serta **laporan kualitas kolom**, tanpa menunggu pilihan angkatan dan kelas.
+5. Operator memilih Angkatan dan Kelas tujuan, lalu sistem memvalidasi setiap baris melalui aksi server.
+6. Baris bermasalah ditampilkan di tabel error (Baris + Keterangan); bagian atas menampilkan ringkasan "N diterima · M ditolak". Karena sifatnya **all-or-nothing**, bila M > 0 maka N = 0 dan tidak ada data yang akan ditulis.
+7. Bila seluruh baris valid (M = 0), tombol **Proses N Baris** aktif; Operator menekannya untuk menyimpan (siswa dibuat bila baru, nilai/kehadiran di-upsert).
 8. Sistem mencatat aktivitas impor ke audit log dan menyegarkan halaman dashboard/rekap/siswa.
 
 ## 7.2 Operator Mengelola Data Satu Siswa (CRUD Manual)
 
 1. Operator membuka menu **Kelola Data Siswa**.
-2. Operator memfilter data berdasarkan Angkatan dan Kelas.
+2. Operator memfilter data berdasarkan Angkatan dan Kelas, atau menyaring dengan kotak pencarian nama/NIS. Mode **Cari di semua angkatan** mengabaikan filter angkatan dan kelas sehingga operator dapat menemukan siswa tanpa mengetahui kelasnya.
 3. Untuk menambah/mengubah/menghapus siswa, Operator menggunakan form dialog tambah, edit, atau tombol hapus pada baris siswa; menghapus juga membersihkan nilai dan kehadiran terkait.
 4. Untuk memperbaiki nilai/kehadiran, Operator membuka **popup detail siswa**, memilih tab Nilai atau Kehadiran, lalu menambah/mengubah baris via dialog.
 5. Sistem menyimpan perubahan dan mencatatnya ke audit log.
@@ -204,7 +209,7 @@ Fitur grafik perbandingan nilai antar-angkatan dan fitur ekspor laporan (PDF/Exc
 1. Guru login dan diarahkan ke halaman default **Dashboard Utama**.
 2. Guru memilih angkatan dan (opsional) kelas; lalu membaca grafik peringkat mapel untuk mengidentifikasi mapel dengan nilai terendah.
 3. Guru membuka menu **Rekap Akademik** untuk membandingkan performa antar-kelas (rata-rata, kehadiran, mapel terbaik/terendah).
-4. Guru membuka menu **Pencarian Siswa**, memilih angkatan/kelas, lalu menekan tombol detail pada baris siswa.
+4. Guru membuka menu **Pencarian Siswa**, menyaring dengan kotak pencarian nama/NIS (atau memakai mode cari di semua angkatan bila belum tahu kelas siswa), lalu menekan tombol detail pada baris siswa.
 5. Sistem menampilkan popup detail siswa berisi grafik dan tabel nilai/kehadiran selama 1–6 semester.
 
 ## 7.4 Superadmin Mengatur Hak Akses Role
@@ -231,22 +236,29 @@ Skema disimpan di `src/lib/db/schema.sql` (PostgreSQL). Seluruh primary key mema
 |**Angkatan**|id, tahun_lulus (2000–2100)|Merepresentasikan tahun lulus, mis. 2026|
 |**Kelas**|id, angkatan_id, nama_kelas|Satu huruf (A–Z), terikat pada satu angkatan|
 |**Siswa**|id, kelas_id, nis (unik), nama, jenis_kelamin (L/P)|Data induk/profil siswa; tanpa kolom `status_aktif`|
-|**MataPelajaran**|id, nama_mapel, kode (unik), urutan|11 mapel default di-seed; urutan untuk pengurutan|
+|**MataPelajaran**|id, nama_mapel, kode (unik), urutan|13 mapel default di-seed (11 aktif + SBK/PRK kurikulum lama); katalog global, urutan untuk pengurutan|
 |**NilaiSiswa**|id, siswa_id, mata_pelajaran_id, semester (1–6), nilai (0–100)|Nilai akhir per mapel per semester|
 |**KehadiranSiswa**|id, siswa_id, semester (1–6), sakit, izin, tanpa_keterangan|Rekap kehadiran per semester (semua ≥ 0)|
 |**AuditLog**|id, user_id (tanpa FK), user_nama, aksi (enum), entitas, detail, waktu|Pencatatan aktivitas; user_id sengaja tanpa FK agar log tetap aman bila user dihapus|
 
-**Pola akses data (penting untuk memahami perilaku saat ini):** action files (mis. `src/lib/siswa/actions.ts`) memuat seluruh dataset melalui `getDb()` (query semua tabel), memutasi dataset dalam memori, lalu menyimpannya kembali melalui `persist()` yang menuliskan ulang **seluruh tabel** dalam satu transaksi (`TRUNCATE ... CASCADE` lalu insert ulang). `resetDb()` memuat ulang seed awal. `buildSeed()` (pembangkit data demo dengan generator acak) masih tersedia di `src/lib/db/seed.ts` namun tidak terpakai pada jalur produksi — seed aktif berada di `src/lib/db/seed-postgres.ts`.
+**Pola akses data (penting untuk memahami perilaku saat ini):** action files (mis. `src/lib/siswa/actions.ts`) memuat seluruh dataset melalui `getDb()` (query semua tabel), memutasi dataset dalam memori, lalu menyimpannya kembali melalui `persist()` yang menuliskan ulang **seluruh tabel** dalam satu transaksi (`TRUNCATE ... CASCADE` lalu insert ulang dalam urutan parent → child, dipecah menjadi beberapa statement bila jumlah parameter mendekati batas protokol PostgreSQL). `resetDb()` memuat ulang seed awal. Baris hasil query dinormalisasi di `src/lib/db/normalize.ts` (mis. kolom waktu PostgreSQL menjadi string ISO) agar bentuk datanya sama dengan yang dipakai modul lain.
+
+Proteksi rute Berlapis berada di `src/proxy.ts` (menggantikan `middleware.ts` pada Next.js 16): ia hanya memeriksa keberadaan sesi yang valid dan mengarahkan ke `/login`, sedangkan **otorisasi per role** dilakukan di dalam halaman dan server action melalui `requireRoute` / `hasPermission`.
+
+Action files terbagi per modul: `src/lib/auth`, `src/lib/admin`, `src/lib/master`, `src/lib/siswa/actions.ts` (siswa), `src/lib/siswa/academic-actions.ts` (nilai & kehadiran), dan `src/lib/import` (validasi, resolusi kolom mapel, penulisan hasil impor). `buildSeed()` (pembangkit data demo dengan generator acak) masih tersedia di `src/lib/db/seed.ts` namun tidak terpakai pada jalur produksi — seed aktif berada di `src/lib/db/seed-postgres.ts` yang dengan sengaja mengosongkan seluruh data akademik.
 
 # 9. Kebutuhan Non-Fungsional (Non-Functional Requirements)
 
-* **Keamanan & Hak Akses :** Sesi login berupa JWT di cookie `httpOnly` (masa berlaku 7 hari), kunci dari `SESSION_SECRET`. Halaman dilindungi `requireRoute` (berbasis rute per role) dan aksi server diperiksa `hasPermission` (berbasis permission per role). Akun nonaktif ditolak saat login. Superadmin terakhir dan akun yang sedang login tidak dapat dihapus/dinonaktifkan.
-* **Integritas Data :** Validasi input manual memakai **Zod** (nis, nama, jenis kelamin, semester 1–6, nilai 0–100, kehadiran ≥ 0, kode mapel, email, dsb.) sebelum `persist()`. Constraint UNIQUE/CHECK di PostgreSQL (email, nis, kode mapel, semester, rentang nilai) menguatkan validasi tersebut.
+* **Keamanan & Hak Akses :** Sesi login berupa JWT di cookie `httpOnly` (masa berlaku 7 hari), kunci dari `SESSION_SECRET`. Lapisan pertama ada di `src/proxy.ts` (pemeriksaan sesi untuk seluruh rute); lapisan kedua berupa halaman yang dilindungi `requireRoute` (berbasis rute per role) dan server action yang diperiksa `hasPermission` (berbasis permission per role). Akun nonaktif ditolak saat login. Superadmin terakhir dan akun yang sedang login tidak dapat dihapus/dinonaktifkan.
+* **Integritas Data :** Validasi input manual memakai **Zod** (nis, nama, jenis kelamin, semester 1–6, nilai 0–100, kehadiran ≥ 0, kode mapel, email, dsb.) sebelum `persist()`. Constraint UNIQUE/CHECK di PostgreSQL menguatkan validasi tersebut, dan terbagi menjadi: (a) yang menyatu di `schema.sql` — `user.email`, `siswa.nis`, `mata_pelajaran.kode`, `semester` 1–6, `nilai` 0–100, `tahun_lulus` 2000–2100; (b) yang ada di migrasi terpisah `src/lib/db/migrations/001_unique_constraints.sql` — UNIQUE untuk `NilaiSiswa(siswa_id, mata_pelajaran_id, semester)`, `KehadiranSiswa(siswa_id, semester)`, dan `Kelas(angkatan_id, nama_kelas)`. Migrasi (b) **dijalankan manual** dan belum tentu sudah diterapkan pada seluruh lingkungan.
+* **Keamanan Impor :** Impor bersifat all-or-nothing, dan setiap baris divalidasi sebelum penulisan. Validasi dan penulisan berbagi satu sumber kebenaran (`src/lib/import/validate.ts` dipakai oleh aksi server maupun oleh penulis hasil impor), sehingga apa yang lolos di preview dijamin sama dengan yang masuk ke database.
+* **Konsistensi Statistik :** Mapel tanpa data dibedakan dari nilai 0. Fungsi `mapelDenganNilai()` di `src/server/service/statistics.ts` menentukan mapel yang benar-benar punya nilai untuk sekumpulan siswa; mapel lain tidak dihitung dan tidak ditampilkan. Aturan ini menjadi kontrak sistem yang juga dipakai oleh Tahap machine learning (lihat `Protokol_Evaluasi_A1.md` §4).
+* **Keberlanjutan Model :** Aplikasi tidak menjalankan machine learning; tampilan prediksi hanya **membaca** hasil dari tabel `Prediksi`. Pembaruan model terjadi di luar aplikasi (pipeline Python dengan kredensial DB read-only) dan diterbitkan via `posting.py` — diatur di `ML_Roadmap_Capstone.md` §8.3 dan `Protokol_Evaluasi_A1.md` §11.
 * **Akuntabilitas Data :** Setiap perubahan data oleh Operator/Superadmin serta login/logout tercatat dalam audit log (`user_id`, `user_nama`, aksi, entitas, detail, waktu).
-* **Modularitas Kode :** Pemisahan lapisan pada data layer (`store`, `write`, `types`, `schema.sql`), action files per modul (auth, admin, master, siswa, import, akademik), dan `server/service/statistics.ts` untuk perhitungan statistik dashboard.
-* **Konsistensi UI :** Komponen UI dibangun sebagai komponen reusable (shadcn/ui: button, card, dialog, select, input, label, badge, skeleton, tabs, switch, sonner) dan tidak di-hardcode pada halaman, agar konsisten di seluruh level dashboard.
+* **Modularitas Kode :** Pemisahan lapisan pada data layer (`store`, `write`, `normalize`, `types`, `schema.sql`), action files per modul, dan `server/service/statistics.ts` untuk perhitungan statistik dashboard. Modul yang murni (tanpa I/O) diuji dengan `node:test`.
+* **Konsistensi UI :** Komponen UI dibangun sebagai komponen reusable (shadcn/ui: button, card, dialog, sheet, select, input, label, badge, skeleton, tabs, switch, sonner) dan tidak di-hardcode pada halaman, agar konsisten di seluruh level dashboard. Hanya tersedia tema terang.
 * **Tampilan :** Untuk versi MVP, antarmuka dioptimalkan untuk penggunaan desktop; dukungan tampilan responsif/mobile belum menjadi prioritas.
-* **Performa :** Pola baca-tulis seluruh dataset dalam satu operasi diterima untuk skala sekolah (±1.000 siswa); perlu ditinjau ulang apabila volume data tumbuh signifikan (mis. banyak angkatan sekaligus).
+* **Performa :** Pola baca-tulis seluruh dataset dalam satu operasi diterima untuk skala sekolah (±1.000 siswa); perlu ditinjau ulang apabila volume data tumbuh signifikan (mis. banyak angkatan sekaligus). Penulisan dipecah per chunk agar tidak melampaui batas parameter protokol PostgreSQL, dan pembuatan ID dipercepat dengan alokator bulk (`src/lib/db/id.ts`).
 
 # 10. Integrasi Pihak Ketiga
 
@@ -255,20 +267,24 @@ Skema disimpan di `src/lib/db/schema.sql` (PostgreSQL). Seluruh primary key mema
 |**PostgreSQL (langsung via `pg`)**|Basis data utama aplikasi|Koneksi melalui `DATABASE_URL`; bukan Supabase seperti rencana awal|
 |**DBeaver**|Alat administrasi/manajemen database|Digunakan oleh tim pengembang untuk mengelola database, bukan bagian dari aplikasi end-user|
 |**Next.js 16 + React 19 + Tailwind CSS**|Framework front-end & back-end, styling|App Router + Turbopack; Tailwind v4 via `@tailwindcss/postcss`|
-|**shadcn/ui + Radix + `tailwind-merge`/CVA**|Pustaka komponen UI|Komponen reusable; mendukung dark/light theme (`next-themes`)|
+|**shadcn/ui + Radix + `tailwind-merge`/CVA**|Pustaka komponen UI|Komponen reusable; **hanya tema terang** (dukungan tema gelap telah dihapus)|
 |**Recharts**|Visualisasi grafik dashboard|Donut, grouped bar, line, vertical bar, horizontal bar|
 |**jose**|Enkripsi/verifikasi sesi JWT|Cookie `httpOnly` masa berlaku 7 hari|
 |**Zod**|Validasi skema input|Form login, CRUD, import, konfigurasi RBAC|
-|**`@e965/xlsx`**|Membaca file Excel/CSV & membuat template|Parsing berjalan di sisi klien, validasi/persist di sisi server|
+|**`@e965/xlsx`**|Membaca file Excel/CSV & membuat template|Parsing berjalan di sisi klien, validasi/persist di sisi server; template memakai kolom mapel berkode|
+|**`pg` + `src/proxy.ts`**|Koneksi PostgreSQL dan proteksi rute berlapis|`proxy.ts` menggantikan `middleware.ts` pada Next.js 16; memeriksa sesi, bukan otorisasi per role|
 
 # 11. Fitur Usulan / Fase Lanjutan
 
 * **Grafik Perbandingan Antar-Angkatan.** Menampilkan perbandingan tren nilai dan kehadiran antara lebih dari satu angkatan sekaligus. Ditunda karena data historis lintas-angkatan masih terbatas.
 * **Fitur Ekspor Laporan.** Kemampuan mengekspor data nilai/kehadiran (mis. ke PDF atau Excel) untuk kebutuhan pelaporan formal; belum menjadi prioritas pada rilis awal.
-* **Pencarian Teks Bebas Siswa.** Saat ini daftar siswa dijelajahi per angkatan/kelas; penelusuran langsung berdasarkan nama/NIS dapat menambah kenyamanan.
 * **Pembuatan Role Kustom secara Dinamis.** Saat ini role dibuat melalui seed; kemampuan membuat role baru dari UI menjadi bagian manajemen hak akses yang lebih lengkap.
-* **Validasi Impor yang Lebih Ketat.** Opsi "gagalkan seluruhnya bila ada baris error" (all-or-nothing) sebagai alternatif perilaku proses-baris-valid saat ini.
+* **Mode impor sebagian (best-effort).** Saat ini impor bersifat all-or-nothing. Opsi "proses baris valid, abaikan baris error" pernah ada namun diganti all-or-nothing karena laporan hasil impor yang hanya terisi sebagian menyesatkan. Bila dibutuhkan, harus dirancang ulang sebagai opsi eksplisit dengan peringatan tegas.
 * **Peningkatan Keamanan Password.** Migrasi dari SHA-256 tanpa salt ke skema hash kuat (mis. bcrypt/argon2) dan mekanisme lupa/reset password mandiri bagi end user.
+* **Migration Runner.** Saat ini migrasi SQL dijalankan manual lewat `psql` atau DBeaver. Menyediakan migration runner dengan penomoran dan pencatatan riwayat migrasi akan menyederhanakan penerapan constraint dan penambahan tabel baru di masa depan.
+* **Dukungan Tema Gelap.** Terapkan kembali mode gelap beserta pengalih tema, apabila operator yang bekerja di ruangan minim cahaya membutuhkannya.
+* **Pencarian Siswa yang Lebih Cerdas.** Pencarian saat ini mencocokkan nama dengan `contains` dan NIS dengan `prefix`. Pencarian fuzzy pada nama (menoleransi salah ketik) dapat ditambahkan bila keluhan operator sering terjadi.
+* **Tab Proyeksi pada Detail Siswa.** Menampilkan prediksi nilai semester berikutnya (per mapel + interval keyakinan) pada popup detail siswa, membaca hanya dari tabel `Prediksi` melalui `getDb()`. Akses dibatasi permission `prediksi.read` (default diberikan ke role Guru dan Operator; dapat diubah Superadmin). Halaman khusus "Proyeksi" di sidebar dan agregat lintas siswa ditunda sebagai fase lanjutan — lihat `ML_Roadmap_Capstone.md` §8.3.
 
 # 12. Pertanyaan Terbuka / TBD
 
@@ -292,8 +308,10 @@ Skema disimpan di `src/lib/db/schema.sql` (PostgreSQL). Seluruh primary key mema
 * **Clear Kelas :** Aksi menghapus seluruh siswa (beserta nilai dan kehadiran) dalam satu kelas sekaligus.
 * **Rekap Akademik :** Halaman tabel perbandingan performa seluruh kelas dalam satu angkatan.
 * **Upsert :** Perilaku impor yang menambah data baru bila belum ada dan memperbarui data yang sudah ada.
+* **All-or-nothing :** Sifat impor yang menolak menulis apa pun bila ditemukan satu saja baris cacat, alih-alih menyimpan baris yang valid.
+* **Laporan Kualitas Kolom :** Ringkasan cakupan kolom mapel pada file impor — kolom mana yang dikenali, berapa baris yang terisi, dan kolom mana yang tidak terisi sama sekali.
 * **SINAR :** Nama merek tampilan aplikasi (Sistem Nilai, Analisis, Rekap) yang ditampilkan pada halaman login dan sidebar.
 
 ---
 
-*Dokumen ini adalah revisi yang diselaraskan dengan kondisi implementasi per 19 September 2026 dan dapat berubah seiring pembahasan lebih lanjut dengan klien. Versi sebelumnya (v0.3) tersedia pada file `PRD_Dashboard_Akademik_SMPN1_Cibalong_v0.3.md`.*
+*Dokumen ini adalah revisi yang diselaraskan dengan kondisi implementasi per 29 September 2026 dan dapat berubah seiring pembahasan lebih lanjut dengan klien. Versi sebelumnya (v0.3) tersedia pada file `PRD_Dashboard_Akademik_SMPN1_Cibalong_v0.3.md` dan sudah tidak dipakai sebagai acuan. Dokumen terkait: `ML_Roadmap_Capstone.md` dan `Protokol_Evaluasi_A1.md`.*

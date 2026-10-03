@@ -7,7 +7,11 @@ dilihat. Tujuannya sederhana: supaya tahap ML nanti tidak memilih metrik,
 baseline, atau cara split *setelah* melihat hasilnya. Yang diukur harus
 ditentukan lebih dulu.
 
-Rujukan: `ML_Roadmap_Capstone.md` Tahap 1 dan §3.2–3.3.
+| Dokumen | Isi |
+|---|---|
+| `ML_Roadmap_Capstone.md` | Tahap 1 dan §3.2–3.3 adalah rujukan protocol ini |
+| `src/lib/db/schema.sql` | Sumber tabel `NilaiSiswa`, `KehadiranSiswa`, `Siswa`, `Kelas` |
+| `src/server/service/statistics.ts` | Implementasi aturan applicability mapel (§4) di sisi aplikasi |
 
 ---
 
@@ -67,6 +71,21 @@ evaluasi generalization.
 > Alasan teknis: bila ada 13 mapel terdaftar dan hanya 11 yang berlaku,
 > membagi dengan 13 menurunkan rata-rata kelas sekitar 15% dan membuat mapel
 > yang tidak pernah ada data-nya tampak sebagai mapel terendah.
+
+**Implementasi yang sudah ada di aplikasi — jangan dibuat ulang di pipeline.**
+Fungsi `mapelDenganNilai()` di `src/server/service/statistics.ts` sudah
+menerapkan aturan ini: ia mengembalikan daftar mapel yang benar-benar punya
+nilai untuk sekumpulan siswa, sementara mapel lain diabaikan. Pada aplikasi,
+`nilai = null` berarti "tidak berlaku / tidak ada data", **bukan 0**.
+
+Pipeline ML **wajib memakai definisi yang sama persis** dengan fungsi tersebut.
+Kalau pipeline memakai definisi sendiri, laporan model dan laporan dashboard
+bisa berbeda angka untuk angkatan yang sama - dan ketika berbeda, tidak ada
+yang bisa bilang mana yang benar.
+
+Pilihan yang aman: pakai fungsi yang sama, atau turunkan test yang sama. Karena
+saat ini hanya ada `n = 61` siswa, daftar mapel yang berlaku per cohort bisa
+diverifikasi langsung dari data yang ada.
 
 ## 5. Baseline wajib
 
@@ -142,6 +161,15 @@ daripada klaim "prediksi akurat".
 
 Melewati level ini — misalnya menyebut "terbaik di Indonesia" dengan 1 cohort —
 tidak diperbolehkan. Peta lengkap per Tahap ada di `ML_Roadmap_Capstone.md` §1.
+
+## 11. Retraining wajib
+
+Retraining (pembaruan model saat data bertambah, mis. angkatan baru lengkap) **bukan** pengecualian protokol — seluruh aturan di atas berlaku utuh:
+
+- Setiap train ulang mengulang §2–§7 (split, anti-leakage, applicability mapel, baseline, metrik, ablasi) pada data terkini.
+- Klaim mengikuti tabel §10 sesuai jumlah cohort yang benar-benar tersedia; pertambahan cohort tidak otomatis menaikkan klaim tanpa evaluasi ulang yang sah.
+- Tanpa auto-deploy. Model baru hanya dipakai bila **mengalahkan baseline** (§5); model lama dipertahankan untuk audit.
+- Hasil yang lulus gate dapat diterbitkan ke tabel `Prediksi` dengan `versi_model` baru (lihat `ML_Roadmap_Capstone.md` §8.3 dan §9).
 
 ---
 

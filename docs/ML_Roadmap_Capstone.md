@@ -7,17 +7,17 @@
 |||
 |-|-|
 |**Nama Dokumen**|ML Roadmap — Prediksi Nilai & Peringatan Dini Akademik|
-|**Versi Dokumen**|v1.0|
+|**Versi Dokumen**|v1.0 · Revisi 1|
 |**Disusun oleh**|Tim Pengembang (Capstone Project)|
 |**Untuk**|SMPN 1 Cibalong (Klien) / Proyek Capstone bersama rekan|
-|**Tanggal**|19 September 2026|
-|**Dokumen Terkait**|`PRD_Dashboard_Akademik_SMPN1_Cibalong_v1.0.md`; `src/lib/db/schema.sql`; `README.md`|
+|**Tanggal**|29 September 2026|
+|**Dokumen Terkait**|`PRD_Dashboard_Akademik_SMPN1_Cibalong_v1.0.md`; `Protokol_Evaluasi_A1.md` (protokol evaluasi yang sudah dibekukan); `src/lib/db/schema.sql`; `src/lib/db/migrations/README.md`; `README.md`|
 
 ---
 
 # 1. Latar Belakang & Tujuan
 
-Dashboard Akademik Nesaciba menyimpan data akademik siswa secara terstruktur: angkatan, kelas, siswa, nilai 11 mata pelajaran (6 semester), dan kehadiran per semester. Data ini sebenarnya dapat dimanfaatkan lebih dari sekadar rekap — yaitu untuk **prediksi** dan **peringatan dini** kinerja akademik siswa/guru.
+Dashboard Akademik Nesaciba menyimpan data akademik siswa secara terstruktur: angkatan, kelas, siswa, nilai (katalog 13 mata pelajaran; ±11 yang berlaku bagi suatu angkatan, 6 semester), dan kehadiran per semester. Data ini sebenarnya dapat dimanfaatkan lebih dari sekadar rekap — yaitu untuk **prediksi** dan **peringatan dini** kinerja akademik siswa/guru.
 
 Dokumen ini menyusun konsep penerapan **Machine Learning (ML)** di atas data tersebut sebagai rencana **capstone project** bersama rekan pengembang. Tujuannya bukan sekadar membangun model, tetapi membuktikan bahwa:
 
@@ -33,10 +33,25 @@ Sifat data saat ini adalah **panel longitudinal** (per angkatan: 6 semester ke d
 
 | Skenario | Level | Butuh minimal | Waktu siap digunakan | Sumber data |
 |---|---|---|---|---|
-| **A1** Early-warning nilai siswa | Siswa | 1 angkatan lengkap (6 semester, ±150+ siswa) | Segera — bisa di-*pilot* dengan 1 angkatan | Skema yang ada sudah cukup |
+| **A1** Early-warning nilai siswa | Siswa | 1 angkatan lengkap (6 semester) | Segera — bisa di-*pilot* dengan 1 angkatan | Skema yang ada sudah cukup |
 | **A2** Prediksi rata-rata akhir angkatan berjalan | Angkatan | 1 angkatan lengkap untuk kalibrasi; ideal 3+ | Segera–1 tahun (lihat Bab 4) | Skema yang ada sudah cukup |
 | **B1** Peringatan dini risiko kelas | Kelas | 2–3 angkatan (±12–36 unit kelas) | Setelah 2+ angkatan tersedia | Skema yang ada sudah cukup |
 | **B2** Forecast lintas tahun ("beberapa tahun ke depan") | Angkatan | ≥8 angkatan (rule of thumb), ideal 10–15+ | Setelah data historis diimpor manual | Wajib impor manual + fitur kontekstual |
+
+> **Realitas data saat ini (per 29 September 2026).** Database produksi memuat
+> **1 angkatan, 6 kelas, 61 siswa, 6 semester** — bukan 150+ siswa seperti
+> diasumsikan pada tahapan awal dokumen ini. Artinya ukuran sampel untuk A1
+> adalah `n = 61`, bukan 1.000-an. Angka ini **cukup untuk menjalankan alur
+> kerja end-to-end, tetapi tidak cukup untuk klaim akurasi**, dan hanya dapat
+> diklaim sebagai "bukti kelayakan" (lihat `Protokol_Evaluasi_A1.md` §10).
+> Menyusun feature yang banyak pada `n = 61` akan menghasilkan overfitting;
+> karena itu skenario A1 dimulai dari model regularized dan ablation bertahap.
+>
+> Catatan kedua: angkatan ini belum terisi penuh pada semua mapel. Data
+> importer menunjukkan sekitar 11 dari 13 mapel terisi, karena SBK dan
+> Prakarya merupakan mapel kurikulum lama. Pipeline wajib menerapkan aturan
+> applicability mapel (lihat §3.1 dan `Protokol_Evaluasi_A1.md` §4) agar
+> mapel tanpa data tidak ikut menurunkan rata-rata.
 
 Catatan penting: prediksi "beberapa tahun ke depan" (B2) adalah *multi-step time-series forecast* — model butuh barisan observasi **antar-angkatan** (mis. rata-rata Matematika angkatan 2016, 2017, …, 2026), bukan barisan semester dalam satu angkatan. Karena itu minimum datanya jauh lebih besar dan tidak bisa dipangkas dengan menambah jumlah semester.
 
@@ -52,12 +67,26 @@ Seluruh fitur di bawah **dapat diturunkan dari skema yang ada** — tidak perlu 
 
 | Fitur | Sumber | Bentuk |
 |---|---|---|
-| Nilai 11 mapel pada semester `k` (0–100) | `NilaiSiswa` | Numerik |
+| Nilai mapel pada semester `k` (0–100), **hanya mapel yang berlaku bagi cohort tersebut** | `NilaiSiswa` | Numerik |
 | Agregat per semester: rata-rata, min, max, std dev | turunan | Numerik |
 | Kehadiran sebagai **rasio** terhadap hari efektif (aplikasi memakai asumsi 36 hari/semester) | `KehadiranSiswa` | 0–1 |
 | Lag / delta: rata-rata semester `k-1`, `k-2`, selisih per mapel | turunan | Numerik |
 | `jenis_kelamin`, `kelas` | `Siswa`, `Kelas` | Kategorikal (one-hot) |
 | Normalisasi rata-rata per kelas/angkatan (z-score) | turunan | Numerik |
+| **Daftar mapel yang berlaku per cohort** + jumlah mapel berlaku | turunan, mengikuti aturan `mapelDenganNilai()` | Flag / count |
+
+> **Aturan applicability mapel — jangan diulang, jangan diimplementasikan ulang.**
+> Katalog `MataPelajaran` berisi 13 entri dan bersifat global, sedangkan
+> kurikulum berbeda antar angkatan. Pada aplikasi, nilai `null` berarti "mapel
+> tidak berlaku / tidak ada data sama sekali", **bukan nilai 0**. Pipeline ML
+> **wajib memakai definisi yang sama** dengan aplikasi, yaitu
+> `mapelDenganNilai()` di `src/server/service/statistics.ts`, supaya laporan
+> dashboard dan laporan model tidak berbeda definisi. Aturan lengkap beserta
+> alasannya ada di `Protokol_Evaluasi_A1.md` §4.
+>
+> Catatan: asumsi 36 hari/semester bukan kolom di database, melainkan konstanta
+> yang dipakai halaman daftar siswa dan kelola data. Bila angka hari efektif
+> berubah, pipeline harus memakai konstanta yang sama agar tidak menyimpang.
 
 Target (pilih salah satu atau kombinasi):
 - **Regresi:** nilai semester `k+1` per mapel, atau rata-rata semester berikutnya, atau rata-rata akhir.
@@ -116,7 +145,7 @@ Ringkasnya: keluaran cepat tersedia, tetapi klaim akurasi yang teruji baru bisa 
 |---|---|---|
 | Jumlah angkatan historis | 8 | 10–15+ |
 | Semester per angkatan | 6 | 6 |
-| Mapel konsisten antar tahun | 11 | 11 (perlu normalisasi bila nama/kode berubah) |
+| Mapel konsisten antar tahun | 11 | 11 (katalog saat ini 13; perlu normalisasi bila nama/kode berubah, dan mapel tidak berlaku per tahun harus dikecualikan) |
 | Fitur kontekstual (eksternal) | 0 (model lemah) | 5–10 (lihat bawah) |
 
 **Fitur kontekstual yang belum ada di database** (perlu dicatat agar model kuat):
@@ -144,14 +173,28 @@ Tanpa fitur kontekstual, model hanya mengekstrapolasi tren — secara statistik 
 
 # 7. Data Historis & Migrasi Manual
 
-Saat ini database hanya menyimpan **1 angkatan lengkap**. Data beberapa tahun ke belakang (jika diperlukan untuk B2) harus **dipindahkan manual dari sekolah**, dengan cara yang tidak menyentuh kolom aplikasi:
+## Realitas data saat ini
 
-1. Buat satu entri `Angkatan` untuk setiap tahun lama.
-2. Impor nilai/kehadiran per angkatan memakai **fitur Import Data Excel yang sudah ada** di aplikasi — template kolom (NIS, Nama, Jenis Kelamin, Semester, Sakit, Izin, Tanpa Keterangan, lalu kolom per mapel) sudah sesuai; kolom `Semester` diisi 1–6.
-3. Bersihkan inkonsistensi sebelum/impor:
-   - Penamaan mapel yang berubah antar tahun (mis. "Matematika" vs "MTK") — samakan dulu dengan `MataPelajaran` saat ini.
+Seed produksi (`src/lib/db/seed-postgres.ts`) **sengaja mengosongkan seluruh data akademik** — isinya hanya RBAC dan 13 mapel. Jadi angka yang ada di database berasal dari **impor oleh operator**, bukan dari seed. Saat ini yang terisi: **1 angkatan, 6 kelas, 61 siswa, 6 semester, ±11 dari 13 mapel**.
+
+Konsekuensinya untuk A1: jumlah unit analisis adalah `n = 61`. Pipeline bisa dijalankan, tetapi hasilnya hanya layak diklaim sebagai **bukti kelayakan**, bukan sebagai evaluasi generalisasi.
+
+## Mengimpor data historis
+
+Data beberapa tahun ke belakang (diperlukan untuk B2) harus **dipindahkan manual dari sekolah**, tanpa mengubah kolom aplikasi:
+
+1. Buat satu entri `Angkatan` untuk setiap tahun lama. Penambahan angkatan otomatis membuat 6 kelas default A–F, jadi periksa apakah jumlah kelas lama sesuai.
+2. Impor nilai/kehadiran per angkatan memakai **fitur Import Data Excel yang sudah ada**. Perilaku importer saat ini yang perlu diketahui:
+   - Kolom mapel diidentifikasi dengan **kode** (`MTK`, `BIN`, `SBK`), bukan nama panjang. Unduh template lebih dulu agar nama kolom persis sama.
+   - Kolom kehadiran (Sakit, Izin, Tanpa Keterangan) **opsional**. Bila file tidak memilikinya, data kehadiran yang sudah ada tidak ditimpa.
+   - Impor bersifat **all-or-nothing**: satu baris cacat membuat seluruh file ditolak. Untuk data historis beribu baris, operator harus membersihkan file secara bertahap sampai bersih.
+   - **NIS yang sudah terdaftar di kelas lain akan ditolak** sebagai error. Karena itu urutan impor penting: kelas angkatan tersebut diperluas lebih dulu, atau file historis diimpor ke angkatan yang benar sejak awal.
+   - Setelah impor, **periksa laporan kualitas kolom** pada halaman import: kolom yang dilaporkan "tidak terisi sama sekali" adalah indikasi nama kolom salah ketik dan berarti nilai diam-diam tidak masuk.
+3. Bersihkan inkonsistensi sebelum/sesudah impor:
+   - **Penamaan mapel antar tahun** tidak perlu disamakan manual satu per satu. Importer sudah me-*resolve* kolom dari kode, nama persis, alias, lalu pencocokan kemiripan, dan menampilkan saran bila gagal dikenali. Yang tetap menjadi tanggung jawab operator adalah **memverifikasi** hasil resolusi itu lewat laporan kualitas kolom.
    - Perubahan kurikulum (nilai bisa terinflasi/depresiasi antar tahun).
    - Jumlah kelas berbeda per angkatan di masa lampau.
+   - Mapel kurikulum lama (SBK, Prakarya) akan tersimpan di katalog global yang sama dengan mapel aktif. Jangan dianggap sebagai mapel yang berlaku di semua tahun — terapkan aturan applicability per cohort.
 4. Simpan **arsip agregat** (bukan hanya data mentah) ke tabel `RiwayatAngkatan` agar deret historis selalu tersedia meskipun angkatan lama dihapus dari menu Master Data.
 
 ---
@@ -183,16 +226,57 @@ Tabel ini menyimpan **arsip agregat per angkatan** (rata-rata per mapel per seme
 
 Kesimpulan: **`Prediksi` adalah fondasi wajib semua skenario; `RiwayatAngkatan` baru wajib saat B2 dipersiapkan.**
 
+## 8.3 Pipeline: model → tabel `Prediksi` → dashboard
+
+Model dilatih **di luar aplikasi** dan hasilnya diterbitkan ke dashboard melalui tabel `Prediksi`. Aplikasi **tidak pernah menjalankan machine learning** — web hanya membaca hasil jadi.
+
+1. **Training (`train.py`)** — menarik data pelatihan dari Postgres memakai **user database read-only** (bukan `DATABASE_URL` aplikasi), membangun fitur wide, melatih, dan mengevaluasi menurut `Protokol_Evaluasi_A1.md`.
+2. **Artefak model** (`.joblib` + `params.json` + `metrik.json` + `versi`) disimpan **di luar basis data** (folder `ml/artefak/`); model tidak pernah masuk ke DB.
+3. **Penerbitan (`posting.py`)** — menulis baris hasil prediksi (`skenario`, `level`, `entitas_id`, `semester_target`, `nilai_prediksi`, `interval_lower`/`interval_upper`, `versi_model`, `metrik_error`) ke tabel `Prediksi`.
+4. **Tampilan** — web membaca `Prediksi` lewat `getDb()` dan menyajikannya sebagai **tab "Proyeksi" pada detail siswa**, dibatasi permission `prediksi.read` (default diberikan ke role **Guru** dan **Operator**; dapat diubah Superadmin). Menu halaman khusus "Proyeksi" di sidebar ditunda sebagai fase lanjutan.
+
+Alur ringkas: `train.py` → artefak model (file, di luar DB) → `posting.py` → tabel `Prediksi` → `getDb()` → tab "Proyeksi".
+
+> **Catatan teknis sebelum membuat tabel baru.** Proyek ini belum memiliki
+> migration runner. `npm run db:migrate` hanya menerapkan
+> `src/lib/db/schema.sql`, sedangkan perubahan schema berikutnya diletakkan di
+> `src/lib/db/migrations/` dan dijalankan **manual** lewat `psql` atau DBeaver
+> (lihat `src/lib/db/migrations/README.md`). Maka `Prediksi` dan
+> `RiwayatAngkatan` sebaiknya dibuat sebagai berkas migrasi bernomor — misalnya
+> `002_prediksi.sql` dan `003_riwayat_angkatan.sql` — dan **bukan** disisipkan
+> ke `schema.sql`, supaya `db:migrate` pada lingkungan yang sudah berisi data
+> tidak gagal dan urutan penerapannya tercatat jelas.
+
 # 9. Roadmap Implementasi
 
 | Tahap | Aktivitas | Syarat data |
 |---|---|---|
-| **0 — Fondasi** | Buat tabel `Prediksi`; siapkan konvensi import dataset/template untuk data historis | Skema yang ada |
-| **1 — Pilot A1 & A2** | Notebook Python (pandas + scikit-learn): ekstraksi → fitur wide → training → evaluasi. Hasil dibahas, belum masuk UI | 1 angkatan lengkap |
+| **0 - Fondasi** | Baca dan tetapkan `Protokol_Evaluasi_A1.md`; buat tabel `Prediksi` sebagai migrasi `002_prediksi.sql`; siapkan konvensi import dataset/template untuk data historis | Skema yang ada |
+| **1 - Pilot A1 & A2** | Notebook Python (pandas + scikit-learn): ekstraksi, fitur wide, training, evaluasi **menurut Protokol_Evaluasi_A1.md**. Hasil dibahas, belum masuk UI | 1 angkatan lengkap (`n = 61`) |
 | **2 — B1** | Model risiko kelas + evaluasi *leave-one-angkatan-out* | 2–3 angkatan |
-| **2b — Data B2** | Mulai migrasi manual angkatan lama; tambah tabel `RiwayatAngkatan`; bersihkan inkonsistensi mapel/kurikulum | Data historis sekolah |
-| **3 — B2** | Backtest rolling lintas angkatan; ARIMA/ETS/panel regression; laporan interval keyakinan | ≥8 angkatan |
+| **2b — Data B2** | Mulai migrasi manual angkatan lama; tambah tabel `RiwayatAngkatan` (migrasi `003_riwayat_angkatan.sql`); bersihkan inkonsistensi mapel/kurikulum | Data historis sekolah |
+| **3 - B2** | Backtest rolling lintas angkatan; ARIMA/ETS/panel regression; laporan interval keyakinan | 8+ angkatan |
 | **Opsional** | Tampilkan hasil `Prediksi` sebagai kartu "Proyeksi" di dashboard (hanya membaca tabel `Prediksi`) | Tergantung skenario |
+
+### Keberlanjutan & retraining model
+
+Setelah serah terima, **operator sekolah** menjadi pelaksana pembaruan model. Siklusnya semi-otomatis dan dijalankan saat data bertambah — umumnya (a) setiap angkatan baru selesai terisi, dan/atau (b) menjelang semester baru:
+
+- `train.py` menarik data terbaru dan mengevaluasi ulang menurut protokol yang sama (§ `Protokol_Evaluasi_A1.md`).
+- **Gate wajib:** hasil baru hanya dipakai bila **mengalahkan baseline naif**; bila kalah, versi lama tetap berlaku dan hasilnya dicatat.
+- Versi model lama **dipertahankan** untuk audit; tanpa auto-deploy.
+- `posting.py` menerbitkan prediksi semester berikutnya dengan `versi_model` baru; web otomatis menampilkan angka terbaru melalui tab "Proyeksi".
+- Proses dibuat reproduktif (seed tetap) dan terdokumentasi sebagai runbook (butir luaran yang direncanakan di proposal).
+
+Seiring bertambahnya angkatan (2–3+), retraining inilah yang membuka peluang klaim lebih kuat (B1) sesuai tabel klaim pada Protokol §10.
+
+> **Aturan main yang tidak bisa dilewati.** Tahap 1 **tidak boleh dimulai**
+> sebelum `Protokol_Evaluasi_A1.md` dibaca dan dicatat sebagai beku. Protocol
+> itu sudah menentukan satuan analisis, strategi split, aturan anti-leakage,
+> baseline wajib, metrik, dan bentuk pelaporan. Mengubah salah satu keputusan
+> itu setelah melihat hasil model membatalkan seluruh tujuan pembekuan.
+> Klaim yang boleh dibuat pada tahap ini diatur oleh pasal 10 protocol: dengan
+> 1 cohort, hanya boleh disebut "bukti kelayakan".
 
 # 10. Glosarium
 
