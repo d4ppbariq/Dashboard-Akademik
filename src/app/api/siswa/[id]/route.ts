@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/dal";
+import { requireAuth, hasPermission } from "@/lib/auth/dal";
 import { getDb } from "@/lib/db/store";
 import {
   getKehadiranSiswa,
@@ -13,9 +13,12 @@ interface Params {
 }
 
 export async function GET(_req: Request, { params }: Params) {
+  // requireAuth() tidak pernah mengembalikan null: ia memanggil redirect() saat
+  // sesi tidak ada. Karena itu cabang 401 di sini adalah kode mati. Yang
+  // hilang sebelumnya adalah pemeriksaan permission, bukan cek 401.
   const user = await requireAuth();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await hasPermission(user, "siswa.read"))) {
+    return NextResponse.json({ error: "Tidak memiliki izin" }, { status: 403 });
   }
 
   const { id } = await params;

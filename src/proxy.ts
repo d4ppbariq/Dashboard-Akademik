@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { decrypt } from "@/lib/auth/session";
+import { verifySession } from "@/lib/auth/session";
+import { SESSION_COOKIE } from "@/lib/auth/token";
 
 const PUBLIC_PATHS = new Set(["/login"]);
 
@@ -13,8 +14,8 @@ export async function proxy(request: NextRequest) {
 
   if (isStatic) return NextResponse.next();
 
-  const cookie = request.cookies.get("session")?.value;
-  const session = await decrypt(cookie);
+  const cookie = request.cookies.get(SESSION_COOKIE)?.value;
+  const session = await verifySession(cookie);
 
   if (PUBLIC_PATHS.has(pathname)) {
     if (session) {

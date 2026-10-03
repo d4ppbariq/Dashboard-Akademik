@@ -1,19 +1,18 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { useActionState } from "react";
 import Image from "next/image";
 import { login, type LoginState } from "@/lib/auth/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 
 export default function LoginPage() {
   const [state, action, pending] = useActionState<LoginState, FormData>(
     login,
     undefined
   );
-  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <div className="grid min-h-dvh lg:grid-cols-[65fr_35fr]">
@@ -71,29 +70,13 @@ export default function LoginPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    autoComplete="current-password"
-                    required
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="size-4" />
-                    ) : (
-                      <Eye className="size-4" />
-                    )}
-                  </button>
-                </div>
+                <PasswordInput
+                  id="password"
+                  name="password"
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  required
+                />
                 {state?.fieldErrors?.password && (
                   <p className="text-sm text-destructive">
                     {state.fieldErrors.password[0]}

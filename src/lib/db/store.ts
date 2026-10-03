@@ -65,6 +65,22 @@ function mapDatabase(
   };
 }
 
+/**
+ * Membaca satu user tanpa memuat seluruh database.
+ *
+ * Dipakai jalur login: sebelumnya satu percobaan login membaca 15 tabel penuh
+ * hanya untuk mencari satu baris User, sehingga halaman yang ditebak tanpa batas
+ * juga menjadi beban database. Setelah password cocok, pemanggil tetap memakai
+ * getDb() karena butuh nama role dan menulis audit log.
+ */
+export async function getUserByEmail(email: string): Promise<User | null> {
+  const result = await getPool().query<Row>(
+    `SELECT * FROM "User" WHERE lower(email) = lower($1) LIMIT 1`,
+    [email]
+  );
+  return normalizeRows<User>(result.rows)[0] ?? null;
+}
+
 export async function getDb(): Promise<Database> {
   const db = mapDatabase(
     await selectAll<Role>("Role"),
@@ -85,6 +101,8 @@ export async function getDb(): Promise<Database> {
   );
 
   if (db.roles.length === 0) {
+    // Database masih kosong. Seed memerlukan SEED_* dari .env; kalau belum diisi
+    // buildPostgresSeed melempar error yang menjelaskan apa yang kurang.
     await writeDatabase(getPool(), buildPostgresSeed());
     return getDb();
   }

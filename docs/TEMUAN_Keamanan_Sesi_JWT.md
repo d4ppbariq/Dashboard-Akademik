@@ -1,7 +1,7 @@
 # Temuan - Keamanan Sesi (JWT) dan Autentikasi
 
-Status: **temuan - belum diimplementasikan**. Dokumen ini hanya mencatat
-temuan dan menyusun rencana perbaikannya; tidak ada berkas `.ts` yang diubah.
+Status: **sebagian sudah diimplementasikan**. Bab 3 dan 5 tetap dipakai sebagai
+catatan temuan serta rencana; pencatatannya ada di bagian 10.
 
 Dokumen terkait: `PRD_Dashboard_Akademik_SMPN1_Cibalong_v1.0.md`,
 `RENCANA_Hari_Efektif_Kehadiran.md`, `README.md`
@@ -39,6 +39,11 @@ bisa dicabut).
 ---
 
 ## 2. Arsitektur Sesi Saat Ini
+
+> **Catatan.** Bagian 2 sampai 5 menjelaskan kondisi kode **sebelum** perbaikan dan
+> sengaja dibiarkan apa adanya sebagai dasar analisis. Nomor baris, nama fungsi, dan
+> kutipan kode di bagian ini tidak lagi cocok dengan implementasi sekarang.
+> Untuk status setiap temuan setelah perbaikan, lihat **Bagian 10**.
 
 ### 2.1 Alur login
 
@@ -111,6 +116,10 @@ dalam `src/`. Token hanya hidup di cookie.
 ---
 
 ## 3. Temuan
+
+> **Catatan.** Uraian, bukti, dan nomor baris di bawah ini menggambarkan kondisi
+> **sebelum** perbaikan. Temuan yang sudah ditangani ditandai di **Bagian 10**
+> dan tidak diulang per temuan di sini.
 
 ### 3.1 Sesi dan token
 
@@ -734,6 +743,10 @@ arsitektur yang tepat dan tidak boleh hilang saat refactor.
 
 ## 5. Rencana Perbaikan
 
+> **Catatan.** Ini adalah rencana awal. Langkah 1, 3, 4, 5, 6, dan 8 sudah
+> dikerjakan; Langkah 2 dan 7 masih tertunda karena menyangkut skema database
+> dan penggantian algoritma hash. Status lengkap ada di **Bagian 10**.
+
 ### Urutan pengerjaan
 
 ```
@@ -1154,3 +1167,65 @@ Standar:
 - **CWE-319** - Cleartext Transmission of Sensitive Information (S-08)
 - RFC 7519 - JSON Web Token, klaim `jti`, `iss`, `aud`, dan `sub`
 - OWASP Password Storage Cheat Sheet - argon2id sebagai pilihan utama
+
+---
+
+## 10. Catatan Implementasi
+
+Status per temuan setelah perbaikan pertama (Bagian 1-6 tetap sebagai catatan
+analisis kondisi awal dan sudah diberi penanda; yang berubah hanya statusnya).
+
+| Temuan | Status | Bukti |
+|---|---|---|
+| S-01 | **Selesai** | `token.ts` `resolveSessionSecret` melempar error bila kosong atau < 32 karakter; nilai cadangan di dalam kode dihapus |
+| S-02 | Belum | `token_version` tetap fase lanjutan (butuh migrasi + kolom di `write.ts:38`) |
+| S-03 | **Selesai** | `dal.ts` `getCurrentUser` memeriksa `status_aktif`; akun yang dinonaktifkan langsung kehilangan akses |
+| S-04 | Belum | menyertai S-02 |
+| S-05 | **Selesai** | `SESSION_TTL_HARI` di `token.ts` dibaca `session.ts` untuk `setExpirationTime` maupun `maxAge` |
+| S-06 | **Selesai** | `SessionPayloadSchema` (Zod) menggantikan dbl-cast; field di luar skema dibuang |
+| S-07 | Sebagian | `catch` tetap devuelve `null` tanpa log, sesuai keputusan tidak mencatat isi token |
+| S-08 | **Selesai** | `resolveCookieSecure` menolak nilai selain `true`/`false`; LAN tanpa TLS tetap bisa memakai `false` secara sadar |
+| S-09 | **Selesai** | `encrypt` menjadi `sign`, `decrypt` menjadi `verifySession`, `expiresAt` dihapus, `.env.example` menyebut penandatanganan |
+| S-10 | Sebagian | `token.test.ts`, `route-access.test.ts`, `login-throttle.test.ts`, `password-policy.test.ts`; `password.test.ts` menyertai K-01 |
+| A-01 | **Selesai** | `canAccessRoute` fail-closed; bypass `role-superadmin` mencegah self-lockout |
+| A-02 | **Selesai** | `method` ikut dibandingkan; `requireRoute(path, method = "GET")` |
+| A-03 | **Selesai** | `/api/siswa/[id]` memakai `hasPermission(user, "siswa.read")`; cabang 401 yang merupakan kode mati dihapus |
+| A-04 | Belum | tetap bergantung pada ada/tidaknya reverse proxy |
+| K-01 | **Ditunda** | sengaja ditahan untuk tahap capstone; lihat Bagian 5, Langkah 7 |
+| K-02 | **Ditunda** | menyertai K-01 |
+| K-03 | **Selesai** | `login-throttle.ts`: 5 percobaan per akun dan 20 per IP per 15 menit, di memori |
+| K-04 | **Selesai** | `password-policy.ts`: 8-72 karakter, dipakai bersama oleh form, server action, dan seed |
+| K-05 | **Selesai** | seed membaca `SEED_*` dari `.env`; tidak ada hash maupun teks password di repositori |
+| K-06 | **Selesai** | `getUserByEmail` membaca satu baris; `getDb()` penuh dipanggil setelah password cocok |
+
+### Catatan yang tidak ada di atas
+
+1. **Seed tidak berlaku untuk database yang sudah terisi.** `getDb()` melakukan
+   seed hanya bila tabel `Role` masih kosong. Karena itu
+   `002_api_siswa_route.sql` wajib dijalankan manual pada instalasi lama;
+   perubahan pada `seed-postgres.ts` tidak menggantikannya.
+2. **Halaman yang tidak terdaftar di `Route` akan terkunci.** Fail-closed
+   mengubah konsekuensi kesalahan dari "tidak terlihat" menjadi "mengunci
+   akses". Daftarkan setiap halaman baru di `seed-postgres.ts` **dan** migrasi.
+3. **Prefiks `__Host-` belum dipasang.** Prefiks itu menuntut `secure: true`,
+   sedangkan aplikasi masih mungkin berjalan di LAN tanpa TLS.
+4. **Percobaan login gagal tidak masuk audit log.** `pushAudit` + `persist()`
+   menulis ulang seluruh tabel, sehingga mencatat setiap kegagalan akan menambah
+   beban database yang justru sedang dibatasi. Penguatan audit log adalah bagian
+   dari capstone.
+5. **Validasi `SESSION_SECRET` dilakukan saat pertama kali dipakai**, bukan saat
+   modul diimpor, supaya `next build` tidak gagal pada mesin yang `.env`-nya
+   belum diisi.
+6. **Batas per IP pada throttle bergantung pada `X-Forwarded-For`**, yang bisa
+   dipalsukan tanpa reverse proxy. Penghitung per akun tidak bergantung pada itu
+   dan tetap menjadi gerbang utama.
+7. **`SEED_*` hanya dibaca saat tabel `Role` kosong.** Mengisi ulang `.env` tidak
+   mengubah password akun yang sudah ada. Untuk mengganti password pada
+   instalasi berjalan, pakai **Manajemen User → ikon kunci** (tersedia untuk
+   semua akun, termasuk akun sendiri); jangan memakai `db:reset` karena perintah
+   itu men-truncate seluruh tabel. Resep pemulihan manual bila password
+   superadmin hilang ada di `README.md`.
+8. **Password lama masih berlaku.** Keduanya dulu berbagi satu password, dan
+   `26adm0828` untuk superadmin tercantum di riwayat repositori. Keduanya perlu
+   diganti lewat dialog reset password. Kebijakan 8 karakter hanya berlaku saat
+   password **disetel**, sehingga akun lama tidak terkunci sebelum diganti.

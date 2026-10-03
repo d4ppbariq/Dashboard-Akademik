@@ -5,6 +5,8 @@ import { KeyRound, Power, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
+import { PASSWORD_MAX, PASSWORD_MIN } from "@/lib/auth/password-policy";
 import {
   Dialog,
   DialogContent,
@@ -61,7 +63,27 @@ export function UserForm({ roles }: { roles: { id: string; nama_role: string }[]
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="password">Password awal</Label>
-        <Input id="password" name="password" type="password" placeholder="min. 4 karakter" required />
+        <PasswordInput
+          id="password"
+          name="password"
+          placeholder={`min. ${PASSWORD_MIN} karakter`}
+          autoComplete="new-password"
+          minLength={PASSWORD_MIN}
+          maxLength={PASSWORD_MAX}
+          required
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="password_confirm">Ulangi password</Label>
+        <PasswordInput
+          id="password_confirm"
+          name="password_confirm"
+          placeholder="Ketik ulang"
+          autoComplete="new-password"
+          minLength={PASSWORD_MIN}
+          maxLength={PASSWORD_MAX}
+          required
+        />
       </div>
       <div className="md:col-span-4 flex items-center gap-3">
         <Button type="submit" disabled={pending}>
@@ -112,13 +134,26 @@ function ResetPasswordDialog({
         <form action={action} className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor={`password-${userId}`}>Password baru</Label>
-            <Input
+            <PasswordInput
               id={`password-${userId}`}
               name="password"
-              type="password"
-              placeholder="min. 4 karakter"
+              placeholder={`min. ${PASSWORD_MIN} karakter`}
+              autoComplete="new-password"
+              minLength={PASSWORD_MIN}
+              maxLength={PASSWORD_MAX}
               required
-              minLength={4}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor={`password_confirm-${userId}`}>Ulangi password</Label>
+            <PasswordInput
+              id={`password_confirm-${userId}`}
+              name="password_confirm"
+              placeholder="Ketik ulang"
+              autoComplete="new-password"
+              minLength={PASSWORD_MIN}
+              maxLength={PASSWORD_MAX}
+              required
             />
           </div>
           {state?.error && (

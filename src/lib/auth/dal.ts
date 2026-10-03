@@ -3,13 +3,19 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { getDb } from "@/lib/db/store";
 import { readSession } from "./session";
+import { canAccessRoute } from "./route-access";
 import type { Database, Menu, User } from "@/lib/db/types";
 
 export const getCurrentUser = cache(async (): Promise<User | null> => {
   const session = await readSession();
   if (!session) return null;
   const db = await getDb();
-  return db.users.find((u) => u.id === session.userId) ?? null;
+  const user = db.users.find((u) => u.id === session.userId);
+  // status_aktif diperiksa di sini, bukan hanya saat login. Tanpa ini, akun
+  // yang dinonaktifkan masih bisa memakai cookie lamanya sampai token
+  // kedaluwarsa, sehingga toggleUserStatus tidak langsung mencabut akses.
+  if (!user || user.status_aktif === "NONAKTIF") return null;
+  return user;
 });
 
 export const requireAuth = cache(async (): Promise<User> => {
@@ -18,10 +24,13 @@ export const requireAuth = cache(async (): Promise<User> => {
   return user;
 });
 
-export async function requireRoute(path: string): Promise<User> {
+export async function requireRoute(
+  path: string,
+  method = "GET"
+): Promise<User> {
   const user = await requireAuth();
   const db = await getDb();
-  const canAccess = await hasRouteAccess(user.role_id, path, db);
+  const canAccess = await hasRouteAccess(user.role_id, path, method, db);
   if (!canAccess) redirect("/dashboard");
   return user;
 }
@@ -65,11 +74,8 @@ export async function hasPermission(
 export async function hasRouteAccess(
   roleId: string,
   path: string,
+  method: string,
   db: Database
 ): Promise<boolean> {
-  const route = db.routes.find((r) => r.path === path);
-  if (!route) return true;
-  return db.role_routes.some(
-    (rr) => rr.role_id === roleId && rr.route_id === route.id
-  );
+  return canAccessRoute(db.routes, db.role_routes, roleId, path, method);
 }

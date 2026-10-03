@@ -45,7 +45,7 @@ Perubahan penting versi ini dibandingkan PRD v0.3: (1) migrasi penyimpanan dari 
 
 ## 4.1 Termasuk (MVP)
 
-* Autentikasi login (email + password) dengan sesi JWT di cookie `httpOnly` (masa berlaku 7 hari), hash password SHA-256, serta pencatatan login/logout ke audit log.
+* Autentikasi login (email + password) dengan sesi JWT di cookie `httpOnly` (masa berlaku 7 hari), hash password SHA-256, pembatasan percobaan login (maksimal 5 percobaan per akun dan 20 per alamat IP dalam jendela 15 menit), serta pencatatan login/logout ke audit log.
 * RBAC yang dikonfigurasi berbasis data: manajemen **user** (buat, aktifkan/nonaktifkan, reset password, hapus), **role** (melihat rincian serta menetapkan permission, menu, dan rute yang diakses role), dan daftar **permission**, **menu**, serta **route** dalam mode **read-only** (hanya ubah deskripsi). Proteksi halaman dan aksi memakai `requireRoute`/`hasPermission` tanpa hardcode daftar hak akses pada komponen UI.
 * Manajemen master data: **Angkatan** (tahun lulus; penambahan angkatan otomatis membuat 6 kelas default A–F), **Kelas** (satu huruf kapital, terikat pada angkatan), dan **Mata Pelajaran** (kode + nama, terurut; **13 mapel default** di-seed).
 * Impor data nilai dan kehadiran dari file `.xlsx`/`.xls`/`.csv` (satu sheet datar, kolom NIS, Nama, Jenis Kelamin, Semester, kolom kehadiran opsional, lalu kolom per mapel **berkode**), lengkap dengan tabel preview, validasi per baris (penandaan baris error dan peringatan), tombol proses **all-or-nothing**, **laporan kualitas kolom**, serta unduh template Excel standar.
@@ -59,7 +59,7 @@ Perubahan penting versi ini dibandingkan PRD v0.3: (1) migrasi penyimpanan dari 
 * Pustaka komponen UI reusable (button, card, dialog, sheet, select, input, label, badge, skeleton, tabs, switch, sonner) dengan tema terang saja.
 * Data layer modular: `store` (baca seluruh dataset), `write` (persistensi), `normalize` (normalisasi baris PostgreSQL), `types`, `schema.sql`, action files per modul, dan service statistik terpisah.
 * Unit test dengan `node:test` + `tsx` untuk modul murni: normalisasi baris, penulisan batch, validasi impor, resolusi kolom mapel, penulisan hasil impor, pencarian siswa, dan perhitungan statistik.
-* Seed data awal: RBAC (3 role, 3 user default, permission, menu, route, dan mapping) serta **13 mata pelajaran** default; data akademik sengaja dibiarkan kosong dan diisi oleh operator melalui aplikasi.
+* Seed data awal: RBAC (3 role, 3 user awal, permission, menu, route, dan mapping) serta **13 mata pelajaran** default; kredensial 3 user awal dibaca dari environment (`SEED_SUPERADMIN_PASSWORD`, `SEED_OPERATOR_PASSWORD`, `SEED_GURU_PASSWORD`) sehingga tidak ada password yang tertulis di repositori; data akademik sengaja dibiarkan kosong dan diisi oleh operator melalui aplikasi.
 
 ## 4.2 Di Luar Lingkup Awal / Fase Lanjutan
 
@@ -85,14 +85,14 @@ Fitur grafik perbandingan nilai antar-angkatan dan fitur ekspor laporan (PDF/Exc
 
 |**ID**|**Kebutuhan Fungsional**|**Prioritas**|
 |-|-|-|
-|**RBAC-1**|Superadmin dapat membuat akun pengguna baru (nama, email unik, pilihan role, password awal minimal 4 karakter)|**Wajib**|
-|**RBAC-2**|Superadmin dapat mengaktifkan/menonaktifkan akun pengguna; akun nonaktif tidak dapat login; akun sendiri tidak dapat dinonaktifkan|**Wajib**|
+|**RBAC-1**|Superadmin dapat membuat akun pengguna baru (nama, email unik, pilihan role, password awal 8-72 karakter dengan konfirmasi)|**Wajib**|
+|**RBAC-2**|Superadmin dapat mengaktifkan/menonaktifkan akun pengguna; akun nonaktif ditolak pada saat login maupun pada setiap permintaan berikutnya; akun sendiri tidak dapat dinonaktifkan|**Wajib**|
 |**RBAC-3**|Superadmin dapat mereset password akun pengguna lain|**Wajib**|
 |**RBAC-4**|Superadmin dapat menghapus akun pengguna, kecuali akun superadmin terakhir dan akun yang sedang login|**Wajib**|
 |**RBAC-5**|Superadmin dapat melihat daftar permission beserta jumlah role yang memakainya, mengubah **deskripsi** permission, serta menetapkan permission per role melalui dialog rincian role. Kode permission bersifat read-only (tambah/hapus tidak tersedia dari UI)|**Wajib**|
 |**RBAC-6**|Superadmin dapat melihat daftar menu sidebar (nama, path, ikon, urutan, grup), mengubah **deskripsi**, serta menetapkan menu per role melalui dialog rincian role. Tambah/hapus menu dari UI tidak tersedia|**Wajib**|
-|**RBAC-7**|Superadmin dapat melihat daftar rute (path + method HTTP), mengubah **deskripsi**, serta menetapkan rute per role melalui dialog rincian role. Tambah/hapus rute dari UI tidak tersedia|**Wajib**|
-|**RBAC-8**|Sistem merender menu sidebar sesuai role yang login; halaman tanpa akses rute diarahkan ke `/dashboard`|**Wajib**|
+|**RBAC-7**|Superadmin dapat melihat daftar rute (path + method HTTP), mengubah **deskripsi**, serta menetapkan rute per role melalui dialog rincian role. Tambah/hapus rute dari UI tidak tersedia; karena otorisasi bersifat fail-closed, rute baru hanya berlaku setelah ditambahkan pada seed **dan** melalui migrasi SQL, bukan dari UI|**Wajib**|
+|**RBAC-8**|Sistem merender menu sidebar sesuai role yang login; halaman tanpa akses rute diarahkan ke `/dashboard`. Rute yang belum terdaftar pada tabel `Route` otomatis ditolak (fail-closed), kecuali role `role-superadmin` yang memiliki akses penuh tanpa perlu dicocokkan dengan daftar rute agar tidak terkunci saat konfigurasi belum lengkap|**Wajib**|
 |**RBAC-9**|Sistem memproteksi aksi server (import, CRUD akademik, master, konfigurasi RBAC) dengan pemeriksaan permission sesuai role|**Wajib**|
 
 ## 6.2 Operator — Master Data
@@ -229,7 +229,7 @@ Skema disimpan di `src/lib/db/schema.sql` (PostgreSQL). Seluruh primary key mema
 |**User**|id, nama, email (unik), password_hash, role_id, status_aktif|Akun login; hash SHA-256; `status_aktif` = AKTIF/NONAKTIF|
 |**Permission**|id, kode_permission, deskripsi|Contoh: `nilai.write`, `nilai.read`, `rbac.manage`|
 |**Menu**|id, nama_menu, path, icon, urutan, grup|Daftar menu sidebar; dikelompokkan per `grup` (Analitik/Data/Sistem)|
-|**Route**|id, path, method (GET/POST/PUT/PATCH/DELETE), deskripsi|Daftar rute aplikasi yang dapat diakses per role|
+|**Route**|id, path, method (GET/POST/PUT/PATCH/DELETE), deskripsi|Daftar rute aplikasi yang dapat diakses per role; path yang belum terdaftar ditolak (fail-closed)|
 |**RolePermission**|role_id, permission_id|Relasi role–permission|
 |**RoleMenu**|role_id, menu_id|Relasi role–menu|
 |**RoleRoute**|role_id, route_id|Relasi role–rute|
@@ -249,7 +249,7 @@ Action files terbagi per modul: `src/lib/auth`, `src/lib/admin`, `src/lib/master
 
 # 9. Kebutuhan Non-Fungsional (Non-Functional Requirements)
 
-* **Keamanan & Hak Akses :** Sesi login berupa JWT di cookie `httpOnly` (masa berlaku 7 hari), kunci dari `SESSION_SECRET`. Lapisan pertama ada di `src/proxy.ts` (pemeriksaan sesi untuk seluruh rute); lapisan kedua berupa halaman yang dilindungi `requireRoute` (berbasis rute per role) dan server action yang diperiksa `hasPermission` (berbasis permission per role). Akun nonaktif ditolak saat login. Superadmin terakhir dan akun yang sedang login tidak dapat dihapus/dinonaktifkan.
+* **Keamanan & Hak Akses :** Sesi login berupa JWT di cookie `httpOnly` (masa berlaku 7 hari), kunci dari `SESSION_SECRET` (minimal 32 karakter, diverifikasi saat kunci pertama kali dipakai). Lapisan pertama ada di `src/proxy.ts` (pemeriksaan sesi untuk seluruh rute); lapisan kedua berupa halaman yang dilindungi `requireRoute` (berbasis rute per role, fail-closed dengan bypass `role-superadmin`) dan server action yang diperiksa `hasPermission` (berbasis permission per role). Akun nonaktif ditolak saat login **dan pada setiap permintaan berikutnya**. Login dibatasi 5 percobaan per akun dan 20 per alamat IP dalam jendela 15 menit. Password baru (buat akun dan reset) memakai kebijakan 8–72 karakter dengan konfirmasi. Superadmin terakhir dan akun yang sedang login tidak dapat dihapus/dinonaktifkan.
 * **Integritas Data :** Validasi input manual memakai **Zod** (nis, nama, jenis kelamin, semester 1–6, nilai 0–100, kehadiran ≥ 0, kode mapel, email, dsb.) sebelum `persist()`. Constraint UNIQUE/CHECK di PostgreSQL menguatkan validasi tersebut, dan terbagi menjadi: (a) yang menyatu di `schema.sql` — `user.email`, `siswa.nis`, `mata_pelajaran.kode`, `semester` 1–6, `nilai` 0–100, `tahun_lulus` 2000–2100; (b) yang ada di migrasi terpisah `src/lib/db/migrations/001_unique_constraints.sql` — UNIQUE untuk `NilaiSiswa(siswa_id, mata_pelajaran_id, semester)`, `KehadiranSiswa(siswa_id, semester)`, dan `Kelas(angkatan_id, nama_kelas)`. Migrasi (b) **dijalankan manual** dan belum tentu sudah diterapkan pada seluruh lingkungan.
 * **Keamanan Impor :** Impor bersifat all-or-nothing, dan setiap baris divalidasi sebelum penulisan. Validasi dan penulisan berbagi satu sumber kebenaran (`src/lib/import/validate.ts` dipakai oleh aksi server maupun oleh penulis hasil impor), sehingga apa yang lolos di preview dijamin sama dengan yang masuk ke database.
 * **Konsistensi Statistik :** Mapel tanpa data dibedakan dari nilai 0. Fungsi `mapelDenganNilai()` di `src/server/service/statistics.ts` menentukan mapel yang benar-benar punya nilai untuk sekumpulan siswa; mapel lain tidak dihitung dan tidak ditampilkan. Aturan ini menjadi kontrak sistem yang juga dipakai oleh Tahap machine learning (lihat `Protokol_Evaluasi_A1.md` §4).
@@ -269,7 +269,7 @@ Action files terbagi per modul: `src/lib/auth`, `src/lib/admin`, `src/lib/master
 |**Next.js 16 + React 19 + Tailwind CSS**|Framework front-end & back-end, styling|App Router + Turbopack; Tailwind v4 via `@tailwindcss/postcss`|
 |**shadcn/ui + Radix + `tailwind-merge`/CVA**|Pustaka komponen UI|Komponen reusable; **hanya tema terang** (dukungan tema gelap telah dihapus)|
 |**Recharts**|Visualisasi grafik dashboard|Donut, grouped bar, line, vertical bar, horizontal bar|
-|**jose**|Enkripsi/verifikasi sesi JWT|Cookie `httpOnly` masa berlaku 7 hari|
+|**jose**|Penandatanganan/verifikasi sesi JWT|Cookie `httpOnly` masa berlaku 7 hari|
 |**Zod**|Validasi skema input|Form login, CRUD, import, konfigurasi RBAC|
 |**`@e965/xlsx`**|Membaca file Excel/CSV & membuat template|Parsing berjalan di sisi klien, validasi/persist di sisi server; template memakai kolom mapel berkode|
 |**`pg` + `src/proxy.ts`**|Koneksi PostgreSQL dan proteksi rute berlapis|`proxy.ts` menggantikan `middleware.ts` pada Next.js 16; memeriksa sesi, bukan otorisasi per role|

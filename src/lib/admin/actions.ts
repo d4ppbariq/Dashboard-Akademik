@@ -6,6 +6,11 @@ import { requireAuth, hasPermission } from "@/lib/auth/dal";
 import { getDb, persist, newId } from "@/lib/db/store";
 import { pushAudit } from "@/lib/audit";
 import { hashPassword } from "@/lib/auth/password";
+import {
+  KONFIRMASI_GAGAL,
+  konfirmasiCocok,
+  passwordSchema,
+} from "@/lib/auth/password-policy";
 
 type Result = { error?: string };
 
@@ -25,7 +30,7 @@ const UserSchema = z.object({
   nama: z.string().trim().min(2, "Nama minimal 2 karakter"),
   email: z.email({ message: "Email tidak valid" }),
   role_id: z.string().min(1, "Role wajib dipilih"),
-  password: z.string().min(4, "Password minimal 4 karakter"),
+  password: passwordSchema,
 });
 
 const PermissionSchema = z.object({
@@ -69,6 +74,12 @@ export async function createUser(formData: FormData): Promise<Result> {
   if (!parsed.success) {
     const f = parsed.error.flatten().fieldErrors;
     return { error: f.nama?.[0] ?? f.email?.[0] ?? f.role_id?.[0] ?? f.password?.[0] ?? "Data tidak valid" };
+  }
+
+  // Diperiksa sebelum getDb(): input yang tidak valid tidak boleh membebani
+  // database, dan kesalahan ketikan bukan masalah keamanan.
+  if (!konfirmasiCocok(parsed.data.password, formData.get("password_confirm"))) {
+    return { error: KONFIRMASI_GAGAL };
   }
 
   const db = await getDb();
@@ -153,12 +164,13 @@ export async function resetUserPassword(
   const g = await errorIfForbidden();
   if (!g.ok) return { error: "Tidak memiliki izin" };
 
-  const parsed = z
-    .string()
-    .min(4, "Password minimal 4 karakter")
-    .safeParse(formData.get("password"));
+  const parsed = passwordSchema.safeParse(formData.get("password"));
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Data tidak valid" };
+  }
+
+  if (!konfirmasiCocok(parsed.data, formData.get("password_confirm"))) {
+    return { error: KONFIRMASI_GAGAL };
   }
 
   const db = await getDb();

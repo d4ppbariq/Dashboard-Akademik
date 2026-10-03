@@ -1,12 +1,38 @@
 import type { Database } from "./types";
 import { MATA_PELAJARAN_DEFAULT } from "./seed";
+import { hashPassword } from "@/lib/auth/password";
+import { passwordSchema } from "@/lib/auth/password-policy";
 
-// sha256("26adm0828")
-export const HASH_SUPERADMIN =
-  "f4e1906a47b30e2f266c0d843661994812d532a9286af45c1b158c04eaf07b6e";
-// sha256("admin")
-export const HASH_ADMIN =
-  "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918";
+/**
+ * Password akun awal TIDAK disimpan di repositori, tidak dalam bentuk apa pun.
+ * Nilai diambil dari .env lalu di-hash saat seed berjalan, sehingga yang
+ * tertulis di git hanya hash-nya.
+ *
+ * Tiga nilai terpisah, bukan satu untuk semua: sebelumnya operator dan guru
+ * memakai hash yang sama, sehingga siapa pun yang unknowingly membocorkan satu
+ * password membocorkan keduanya.
+ */
+const SEED_PASSWORD_VARIABLES = [
+  ["SEED_SUPERADMIN_PASSWORD", "superadmin@nesaciba.sch.id"],
+  ["SEED_OPERATOR_PASSWORD", "operator@nesaciba.sch.id"],
+  ["SEED_GURU_PASSWORD", "guru@nesaciba.sch.id"],
+] as const;
+
+function seedPassword(namaVariabel: string, email: string): string {
+  const mentah = process.env[namaVariabel];
+  const parsed = passwordSchema.safeParse(mentah);
+  if (!parsed.success) {
+    const alasan =
+      mentah === undefined || mentah.trim() === ""
+        ? "tidak diisi"
+        : parsed.error.issues[0]?.message ?? "tidak memenuhi kebijakan";
+    throw new Error(
+      `${namaVariabel} ${alasan}. Isi di .env sebelum menjalankan seed. ` +
+        `Akun: ${email}. Lihat .env.example.`
+    );
+  }
+  return hashPassword(parsed.data);
+}
 
 /**
  * Seed awal untuk PostgreSQL.
@@ -26,7 +52,10 @@ export function buildPostgresSeed(): Database {
       id: "u-1",
       nama: "Superadmin Nesaciba",
       email: "superadmin@nesaciba.sch.id",
-      password_hash: HASH_SUPERADMIN, // sha256("26adm0828")
+      password_hash: seedPassword(
+        SEED_PASSWORD_VARIABLES[0][0],
+        SEED_PASSWORD_VARIABLES[0][1]
+      ),
       role_id: "role-superadmin",
       status_aktif: "AKTIF" as const,
     },
@@ -34,7 +63,10 @@ export function buildPostgresSeed(): Database {
       id: "u-2",
       nama: "Operator Akademik",
       email: "operator@nesaciba.sch.id",
-      password_hash: HASH_ADMIN, // sha256("admin")
+      password_hash: seedPassword(
+        SEED_PASSWORD_VARIABLES[1][0],
+        SEED_PASSWORD_VARIABLES[1][1]
+      ),
       role_id: "role-operator",
       status_aktif: "AKTIF" as const,
     },
@@ -42,7 +74,10 @@ export function buildPostgresSeed(): Database {
       id: "u-3",
       nama: "Guru (Akun Umum)",
       email: "guru@nesaciba.sch.id",
-      password_hash: HASH_ADMIN, // sha256("admin")
+      password_hash: seedPassword(
+        SEED_PASSWORD_VARIABLES[2][0],
+        SEED_PASSWORD_VARIABLES[2][1]
+      ),
       role_id: "role-guru",
       status_aktif: "AKTIF" as const,
     },
@@ -100,6 +135,7 @@ export function buildPostgresSeed(): Database {
     { id: "route-20", path: "/admin/routes", method: "GET" as const, deskripsi: "Manajemen rute" },
     { id: "route-21", path: "/api/rbac", method: "POST" as const, deskripsi: "Simpan konfigurasi RBAC" },
     { id: "route-22", path: "/api/rbac", method: "DELETE" as const, deskripsi: "Hapus konfigurasi RBAC" },
+    { id: "route-23", path: "/api/siswa/[id]", method: "GET" as const, deskripsi: "Detail nilai dan kehadiran satu siswa" },
   ];
 
   const role_permissions = [
@@ -130,14 +166,16 @@ export function buildPostgresSeed(): Database {
     })),
   ];
 
-  const role_routes = [
-    ...routes.map((r) => ({ role_id: "role-superadmin", route_id: r.id })),
+const role_routes = [
+    ...routes.map((r) => ({ role_id: "role-superadmin" as const, route_id: r.id })),
     ...[
       "route-1", "route-2", "route-3", "route-4", "route-5", "route-6", "route-7",
       "route-8", "route-9", "route-10", "route-11", "route-12", "route-13", "route-14",
-      "route-15",
+      "route-15", "route-23",
     ].map((route_id) => ({ role_id: "role-operator", route_id })),
-    ...["route-1", "route-2", "route-3"].map((route_id) => ({ role_id: "role-guru", route_id })),
+    // Guru mendapat /api/siswa/[id] karena endpoint ini read-only dan
+    // bersamaan dengan permission siswa.read yang memang dimiliki guru.
+    ...["route-1", "route-2", "route-3", "route-23"].map((route_id) => ({ role_id: "role-guru", route_id })),
   ];
 
   return {

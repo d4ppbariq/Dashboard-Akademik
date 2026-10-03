@@ -52,7 +52,7 @@ async function runSeed(): Promise<void> {
   try {
     await writeDatabase(pool, buildPostgresSeed());
     console.log("✅ Seed berhasil: RBAC + 11 mapel default, data akademik kosong.");
-    console.log("   Login superadmin: superadmin@nesaciba.sch.id / 26adm0828");
+    console.log("   Password akun awal diambil dari SEED_* di .env, tidak dicetak di sini.");
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("Gagal seed:", msg);
