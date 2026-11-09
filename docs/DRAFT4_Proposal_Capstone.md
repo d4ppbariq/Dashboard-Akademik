@@ -13,6 +13,13 @@ Disusun Oleh (Kelompok 2):
 
 JURUSAN INFORMATIKA, FAKULTAS TEKNIK, UNIVERSITAS SILIWANGI, 2026
 
+> **Catatan pembaruan 5 November 2026.** Data aktual sudah mencakup **2
+> angkatan, 356 siswa, 1.691 pasangan siswa-semester**. LOGO 2 fold sudah
+> dijalankan. Hasil awal: model belum mengalahkan B0 secara meyakinkan dan
+> kalah dari rule engine B2; gate penerbitan tidak lulus, sehingga tabel
+> `Prediksi` sengaja tidak diisi. Angka "satu angkatan/61 siswa" yang masih
+> tersisa di badan proposal adalah versi historis dan tidak dipakai lagi.
+
 # BAB I: PENDAHULUAN
 
 ## 1.1 Latar Belakang
@@ -77,7 +84,7 @@ Ruang lingkup proyek ini dibatasi pada rencana yang dikerjakan saat ini:
 
 Hal-hal berikut di luar cakupan proyek saat ini: peringatan dini risiko level kelas (skenario B1), forecast lintas tahun antar-angkatan (skenario B2), prediksi rata-rata akhir angkatan berjalan sebagai produk resmi (skenario A2), fitur ekspor laporan PDF/Excel (hanya purwarupa desain visual), dan dukungan tema gelap. Skenario-skenario tersebut hanya disebut sebagai arah pengembangan dan tidak dibahas sebagai rencana kerja pada proposal ini.
 
-Klaim hasil juga dibatasi oleh ketersediaan data. Dengan satu angkatan lengkap yang tersedia saat ini, hasil evaluasi hanya layak disebut bukti kelayakan, bukan evaluasi generalisasi — sesuai ketentuan pada protokol evaluasi yang telah dibekukan.
+Klaim hasil juga dibatasi oleh ketersediaan data. Dengan dua angkatan yang tersedia saat ini, LOGO 2 fold dapat dijalankan dan hasilnya layak disebut "teruji pada angkatan yang tidak dilatih", tetapi belum evaluasi generalisasi lintas banyak cohort — sesuai ketentuan pada protokol evaluasi yang telah dibekukan.
 
 # BAB II: TINJAUAN PUSTAKA
 
@@ -91,7 +98,7 @@ Data panel longitudinal mengikuti satu unit analisis — dalam hal ini siswa —
 
 ## 2.3 Regresi Terregularisasi: Ridge dan ElasticNet
 
-Regresi Ridge menambahkan penalti L2 pada koefisien sehingga mengecilkan pengaruh fitur yang saling berkorelasi dan menstabilkan estimasi pada data berukuran kecil dengan banyak fitur [1,4]. ElasticNet menggabungkan penalti L1 dan L2, sehingga mampu melakukan seleksi fitur sekaligus menangani korelasi antarfitur [4]. Karena data proyek ini kecil (satu angkatan lengkap), model linier terregularisasi dipilih sebagai model utama karena stabil, cepat, dan dapat diinterpretasikan — koefisien tiap fitur menjelaskan seberapa besar kontribusi nilai, kehadiran, dan posisi relatif terhadap prediksi. Pilihan ini sejalan dengan posisi proyek terhadap state of the art (lihat §2.9).
+Regresi Ridge menambahkan penalti L2 pada koefisien sehingga mengecilkan pengaruh fitur yang saling berkorelasi dan menstabilkan estimasi pada data berukuran kecil dengan banyak fitur [1,4]. ElasticNet menggabungkan penalti L1 dan L2, sehingga mampu melakukan seleksi fitur sekaligus menangani korelasi antarfitur [4]. Karena data proyek ini masih kecil (dua angkatan, 356 siswa), model linier terregularisasi dipilih sebagai model utama karena stabil, cepat, dan dapat diinterpretasikan — koefisien tiap fitur menjelaskan seberapa besar kontribusi nilai, kehadiran, dan posisi relatif terhadap prediksi. Pilihan ini sejalan dengan posisi proyek terhadap state of the art (lihat §2.9).
 
 ## 2.4 Evaluasi Model Prediksi
 
@@ -101,7 +108,7 @@ Untuk masalah regresi, evaluasi utama menggunakan MAE (rata-rata galat mutlak, m
 
 Data leakage terjadi ketika informasi dari data uji atau dari semester target bocor ke proses pelatihan, sehingga metrik terlihat lebih baik dari kenyataan. Kebocoran dapat muncul dari beberapa sumber: fitur dari semester target (termasuk kehadiran semester target), rata-rata akhir untuk memprediksi semester tengah, dan scaler/z-score yang dihitung dari seluruh data [1]. Protokol proyek ini menegaskan pembagian berbasis waktu/angkatan, larangan fitur dari semester target, dan penghitungan z-score hanya di dalam fold pelatihan.
 
-Untuk data terkelompok seperti panel antarsiswa dalam satu angkatan, validasi silang acak (*K-Fold*) tidak tepat: siswa dari angkatan yang sama dapat terbagi ke data latih dan data uji, sehingga informasi antar-siswa dalam satu cohort bocor dan metrik menjadi terlalu optimis. Pembagian karena itu harus menghormati keanggotaan kelompok. Bila tersedia dua angkatan atau lebih, skema validasi yang digunakan adalah *leave-one-group-out* (LOGO) — setiap angkatan diperlakukan sebagai satu kelompok utuh: model dilatih pada semua angkatan kecuali satu, lalu diuji pada angkatan yang ditahan; proses diulang untuk setiap angkatan dan metrik dirata-rata antar fold. Skema ini meniru kondisi penggunaan nyata, yaitu memprediksi angkatan yang belum pernah terlihat model, sekaligus menjamin tidak ada siswa yang sama berada di dua sisi pembagian yang berbeda. Karena data saat ini baru mencakup satu angkatan, LOGO belum dapat dijalankan; sebagai gantinya dipakai split berbasis waktu di dalam angkatan (latih pada semester awal, uji pada semester akhir) dan klaim hasil dibatasi sebagai bukti kelayakan. Implementasi LOGO tersedia di scikit-learn [2] dan menjadi acuan eksekusi proyek ini.
+Untuk data terkelompok seperti panel antarsiswa dalam satu angkatan, validasi silang acak (*K-Fold*) tidak tepat: siswa dari angkatan yang sama dapat terbagi ke data latih dan data uji, sehingga informasi antar-siswa dalam satu cohort bocor dan metrik menjadi terlalu optimis. Pembagian karena itu harus menghormati keanggotaan kelompok. Bila tersedia dua angkatan atau lebih, skema validasi yang digunakan adalah *leave-one-group-out* (LOGO) — setiap angkatan diperlakukan sebagai satu kelompok utuh: model dilatih pada semua angkatan kecuali satu, lalu diuji pada angkatan yang ditahan; proses diulang untuk setiap angkatan dan metrik dirata-rata antar fold. Skema ini meniru kondisi penggunaan nyata, yaitu memprediksi angkatan yang belum pernah terlihat model, sekaligus menjamin tidak ada siswa yang sama berada di dua sisi pembagian yang berbeda. Karena data saat ini sudah mencakup dua angkatan (2025 dan 2026), LOGO 2 fold dijalankan: latih pada satu angkatan dan uji pada angkatan lainnya, lalu ulangi dengan arah sebaliknya. Klaim hasil dibatasi pada level "teruji pada angkatan yang tidak dilatih", belum generalisasi lintas banyak cohort. Implementasi LOGO tersedia di scikit-learn [2] dan menjadi acuan eksekusi proyek ini.
 
 ## 2.6 Keamanan Autentikasi: Hash Password dan Audit Log
 
@@ -124,16 +131,16 @@ Educational Data Mining telah menjadi wilayah riset yang aktif. Tabel berikut me
 | Li et al. (2026) [10] | Radial basis function neural network + indikator FCE-AHP | Perguruan tinggi; ±1.245 mahasiswa (mayoritas rekayasa); data besar | Akurasi 96,32%; RMSE 0,2926 pada peringatan krisis akademik | Jenjang pendidikan tinggi; sampel engineering dengan dominasi laki-laki; butuh skala data besar |
 | Alkan et al. (2025) [11] | C5.0, CART, SVM, Random Forest + seleksi fitur Boruta & SMOTE | Sekolah menengah (Turki); 613 siswa; data kuesioner | Random Forest paling konsisten (CV 74,3%); C5.0 terbaik pada test (75,4%) | Data survei lintas-seksi, bukan riwayat nilai institusional; satu wilayah |
 | Psyridou et al. (2024) [9] | Balanced Random Forest, Easy Ensemble, RSBoost, Bagging DT; 6-fold CV | Longitudinal 13 tahun (kindergarten–SMA) di Finlandia | Klasifikasi dropout yang akurat sejak akhir jenjang SD | Target dropout, bukan prediksi nilai; konteks nordik dengan data besar |
-| Proyek Ini (2026) | Regresi terregularisasi Ridge/ElasticNet + split berbasis waktu menuju *leave-one-angkatan-out* | SMP; data riil satu sekolah (Dashboard Nesaciba); 1 angkatan lengkap (n = 61) | (dilaporkan setelah eksperimen sesuai protokol evaluasi) | Fokus interpretabilitas & kelayakan data terbatas; klaim dibatasi "bukti kelayakan" |
+| Proyek Ini (2026) | Regresi terregularisasi Ridge/ElasticNet + *leave-one-angkatan-out* 2 fold | SMP; data riil satu sekolah (Dashboard Nesaciba); 2 angkatan, 356 siswa, 1.691 pasangan | MAE 1,487 vs B0 1,490 vs B2 0,966; gate vs B0 tidak lulus (ΔMAE −0,0037; CI95 [−0,086; +0,088]) | Fokus interpretabilitas & kelayakan data terbatas; klaim "teruji pada angkatan yang tidak dilatih", belum generalisasi |
 
-Sintesis. Berbeda dari penelitian-penelitian di atas yang mayoritas menggunakan data skala besar pada jenjang pendidikan tinggi (atau kuesioner lintas-seksi), proyek ini diterapkan pada data riil jenjang SMP dengan keterbatasan jumlah angkatan, sehingga pemilihan metode secara eksplisit mempertimbangkan trade-off antara akurasi dan interpretabilitas (Ridge/ElasticNet), serta memperkuat validasi melalui strategi split berbasis waktu menuju *leave-one-angkatan-out* ketika data multi-angkatan tersedia — pendekatan yang jarang ditonjolkan secara eksplisit pada penelitian sejenis. Posisi ini menegaskan bahwa proyek mengisi celah penelitian, bukan sekadar mengulang metode yang ada.
+Sintesis. Berbeda dari penelitian-penelitian di atas yang mayoritas menggunakan data skala besar pada jenjang pendidikan tinggi (atau kuesioner lintas-seksi), proyek ini diterapkan pada data riil jenjang SMP dengan keterbatasan jumlah angkatan, sehingga pemilihan metode secara eksplisit mempertimbangkan trade-off antara akurasi dan interpretabilitas (Ridge/ElasticNet), serta memperkuat validasi melalui *leave-one-angkatan-out* 2 fold pada dua angkatan yang tersedia — pendekatan yang jarang ditonjolkan secara eksplisit pada penelitian sejenis. Posisi ini menegaskan bahwa proyek mengisi celah penelitian, bukan sekadar mengulang metode yang ada.
 
 ## 2.10 Kompleksitas Pekerjaan
 
 Pekerjaan ini tergolong kompleks dan setara capstone karena memadukan tiga kelompok keilmuan sekaligus di atas satu sistem yang telah dikembangkan, antara lain:
 
 - Lintas tiga kompetensi keilmuan. Hasil prediksi (ISI), pengamanan akses (JKF), dan penyajian visual (TMG) saling bergantung: RBAC untuk fitur prediksi, visualisasi interval keyakinan, dan penyimpanan prediksi di satu basis data yang sama harus berjalan selaras hingga tahap UAT lintas jalur.
-- Validasi model yang non-trivial. Kombinasi keterbatasan data (satu angkatan lengkap), aturan anti-leakage, skema split berbasis waktu menuju *leave-one-angkatan-out*, kewajiban mengalahkan baseline naif, dan pelaporan disertai interval keyakinan menjadikan evaluasi bersifat metodologis, bukan sekadar melatih model.
+- Validasi model yang non-trivial. Kombinasi keterbatasan data (dua angkatan), aturan anti-leakage, *leave-one-angkatan-out* 2 fold, kewajiban mengalahkan baseline naif, dan pelaporan disertai interval keyakinan menjadikan evaluasi bersifat metodologis, bukan sekadar melatih model.
 - Keamanan tingkat praktik. Migrasi hash (bcrypt/Argon2) dengan pola *upgrade-on-login*, RBAC berbasis permission, dan audit log harus diterapkan tanpa merusak akun yang sudah ada.
 - Integrasi lintas komponen. Pipeline Python → tabel `Prediksi` → dashboard memerlukan perancangan antarmuka data yang generik, aditif, dan dapat diaudit, di atas sistem yang telah dikembangkan.
 - Komunikasi hasil ke pengguna non-teknis. Prediksi bersifat probabilistik; penyajiannya wajib menjaga guru tidak memperlakukan angka prediksi sebagai kepastian, sekaligus tetap dapat dievaluasi dan diaudit.
@@ -196,13 +203,14 @@ Keamanan: skema hash bcrypt/Argon2 (migrasi dengan pola *upgrade-on-login*), pan
 - Sumber data: basis data PostgreSQL Dashboard Akademik Nesaciba SMPN 1 Cibalong. Data akademik di dalamnya merupakan data riil hasil impor oleh operator melalui fitur impor Excel yang sudah ada, bukan data simulasi. Migrasi data historis dari sekolah dapat menambah cakupan bila tersedia.
 - Struktur data: skema berjenjang Angkatan → Kelas → Siswa; nilai per mata pelajaran per semester (enam semester); rekap kehadiran per siswa per semester; katalog mata pelajaran dengan ±11 mapel yang berlaku bagi suatu angkatan.
 - Karakteristik: bersifat panel longitudinal — satu siswa diikuti berulang dari semester ke semester; mapel tanpa data dibedakan tegas dari nilai 0 (aturan `mapelDenganNilai()`), sehingga metrik dan tampilan tidak terdistorsi.
-- Cakupan saat ini (per September 2026): 1 angkatan, 6 kelas, 61 siswa, 6 semester, dengan ±11 dari 13 mapel katalog yang terisi. Estimasi volume data:
-  - Baris `NilaiSiswa` ≈ 61 siswa × 6 semester × ±11 mapel ≈ ±4.000 baris;
-  - Baris `KehadiranSiswa` ≈ 61 siswa × 6 semester ≈ 366 baris;
-  - Baris pada format wide (satu baris per siswa) = 61 baris.
+- Cakupan saat ekstraksi (5 November 2026): **2 angkatan, 12 kelas, 356 siswa, 6 semester**, dengan 9 mapel umum yang sama pada kedua angkatan. Volume data aktual:
+  - Baris `NilaiSiswa` = **22.477 baris**;
+  - Baris `KehadiranSiswa` = **2.101 baris**;
+  - Pasangan siswa-semester yang dapat dievaluasi = **1.691** (349 siswa unik).
   Angka pasti akan dilaporkan pada laporan teknis saat eksekusi karena data bersifat dinamis mengikuti musim semester.
 - Format data: relasional PostgreSQL, diekstrak menjadi format wide (CSV/DataFrame) pada pipeline machine learning; data historis tambahan (bila disediakan sekolah) diimpor melalui template Excel standar yang sudah ada.
-- Status data: data sudah terisi nyata oleh operator, tetapi belum ditetapkan secara resmi oleh sekolah sebagai acuan resmi (belum ada keputusan formal/pengesahan). Karena itu hasil evaluasi hanya diklaim sebagai bukti kelayakan, sesuai protokol evaluasi yang dibekukan. Penguatan validasi dengan *leave-one-group-out* baru dapat dijalankan setelah angkatan kedua tersedia.
+- Status data: data sudah terisi nyata oleh operator, tetapi belum ditetapkan secara resmi oleh sekolah sebagai acuan resmi (belum ada keputusan formal/pengesahan). Dengan dua angkatan, evaluasi LOGO 2 fold sudah dapat dijalankan dan klaim maksimal adalah "teruji pada angkatan yang tidak dilatih", bukan generalisasi lintas banyak cohort.
+- Hasil eksekusi awal: model rata-rata MAE **1,487** vs B0 **1,490** vs B2 **0,966**. `ΔMAE` terhadap B0 = **−0,0037** dengan CI95 **\[−0,086; +0,088\]**, sehingga gate penerbitan **tidak lulus** dan tabel `Prediksi` tidak diisi. Rule engine B2 justru lebih baik; temuan ini dilaporkan sebagai dasar perbaikan, bukan klaim keberhasilan model.
 - Pengelolaan dan etika: data pribadi siswa dilindungi; pipeline membaca dengan kredensial read-only; hanya hasil prediksi yang bernilai yang dipublikasikan ke tabel `Prediksi`; setiap akses/perubahan terekam pada audit log.
 
 ## 3.6 Rancangan Perangkat Lunak / Desain / Mockup

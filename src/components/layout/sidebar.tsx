@@ -17,6 +17,7 @@ import {
   KeyRound,
   MenuSquare,
   Waypoints,
+  TrendingUp,
   LogOut,
   type LucideIcon,
 } from "lucide-react";
@@ -38,6 +39,7 @@ const ICONS: Record<string, LucideIcon> = {
   KeyRound,
   MenuSquare,
   Waypoints,
+  TrendingUp,
 };
 
 interface SidebarProps {

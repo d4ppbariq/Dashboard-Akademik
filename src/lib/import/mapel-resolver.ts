@@ -38,7 +38,13 @@ export const AMBANG_SARAN = 0.65;
  */
 const ALIAS: Record<string, string[]> = {
   PABP: ["Pendidikan Agama", "Pendidikan Agama Budi Pekerti", "Agama"],
-  PPKN: ["Pendidikan Pancasila", "Pancasila", "Kewarganegaraan"],
+  PPKN: [
+    "Pendidikan Pancasila",
+    "Pancasila",
+    "Kewarganegaraan",
+    "PKN",
+    "Pendidikan Kewarganegaraan",
+  ],
   BIN: ["Bahasa Indo", "Bindo", "Indo"],
   MTK: ["Matematika", "Math", "Mat", "Matematik"],
   IPA: ["Ilmu Pengetahuan Alam"],

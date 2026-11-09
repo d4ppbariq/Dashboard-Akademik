@@ -8,6 +8,7 @@
  */
 
 import { normalisasi, resolveSemuaKolom, type MapelRow, type Resolution } from "./mapel-resolver";
+import { hariEfektif } from "@/lib/attendance/calendar";
 
 export const SEMESTER_MAX = 6;
 
@@ -264,6 +265,17 @@ export function validateRows(
         izin: numField("izin", "Izin"),
         tanpaKeterangan: numField("tanpaKeterangan", "Tanpa Keterangan"),
       };
+
+      if (smtValid) {
+        const total =
+          attendance.sakit + attendance.izin + attendance.tanpaKeterangan;
+        const batas = hariEfektif(smt);
+        if (total > batas) {
+          fail(
+            `Total kehadiran semester ${smt} = ${total} hari, melebihi ${batas} hari efektif`
+          );
+        }
+      }
     }
 
     // Nilai

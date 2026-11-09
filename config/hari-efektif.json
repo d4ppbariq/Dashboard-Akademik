@@ -1,0 +1,12 @@
+{
+  "sumber": "asumsi-sementara",
+  "catatan": "100 hari efektif per semester adalah asumsi sementara sampai kalender resmi SMPN 1 Cibalong tersedia. Angka 36 yang sebelumnya dipakai tidak dipertahankan karena lebih kecil daripada total ketidakhadiran yang sah.",
+  "hariEfektif": {
+    "1": 100,
+    "2": 100,
+    "3": 100,
+    "4": 100,
+    "5": 100,
+    "6": 100
+  }
+}

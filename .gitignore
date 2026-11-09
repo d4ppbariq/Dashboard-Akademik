@@ -42,3 +42,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# machine learning
+ml/data/raw/
+ml/artefak/
+__pycache__/
+*.pyc

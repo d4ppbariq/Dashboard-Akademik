@@ -1,7 +1,15 @@
 # Rencana — Konfigurasi Hari Efektif & Validasi Kehadiran
 
-Status: **rencana** · belum diimplementasikan
+Status: **diimplementasikan sebagian** · 5 November 2026
 Dokumen terkait: `ML_Roadmap_Capstone.md`, `Protokol_Evaluasi_A1.md`, `docs/DRAFT4_Proposal_Capstone.md`
+
+> **Catatan pelaksanaan.** Denominator yang dipakai bukan 36, melainkan
+> **100 hari efektif sementara** dari `config/hari-efektif.json`, karena 36
+> membuat rasio negatif. Modul `src/lib/attendance/calendar.ts`, penggantian
+> dua literal, validasi impor, validasi form manual, dan test sudah
+> diimplementasikan. Langkah 5 (ringkasan kualitas kehadiran di halaman impor)
+> belum dikerjakan. Data aktual sekarang 2 angkatan, 356 siswa, dan 3 baris
+> dengan total absen >36 (bukan 2).
 
 ---
 
@@ -25,6 +33,10 @@ kehilangan hari melebihi 36:
 |---|---|---|---|---|---|---|
 | 232470157 | Wildan Reo Alfandi | 5 | 38 | 1 | 0 | 39 |
 | 232470165 | Bagas Aryanta Pamungkas | 5 | 6 | 0 | 58 | 64 |
+
+> **Data 5 November 2026 (2 angkatan).** Ada satu baris tambahan yang juga
+> melebihi 36: Zahra Amelia, semester 3, total 42 hari. Karena itu jumlah
+> baris bermasalah pada dataset saat ini adalah **3**, bukan 2.
 
 Deret semester Bagas: 8 → 11 → 6 → 26 → **64** → 17. Pola lonjakan pada satu
 semester, bukan ketidakhadiran yang wajar. Diduga kesalahan input operator.
@@ -158,30 +170,29 @@ Berkas `src/lib/import/validate.test.ts` (tambahan):
 - `Protokol_Evaluasi_A1.md` §3 — tambahkan aturan yang dibekukan: definisi
   rasio kehadiran di pipeline tidak boleh dibuat ulang, harus sama persis dengan
   modul aplikasi.
-- `DRAFT4_Proposal_Capstone.md:199-202` — perbarui angka cakupan data (§5).
+- `DRAFT4_Proposal_Capstone.md` §3.5 — **sudah diperbarui** dengan angka
+  ekstraksi 5 November 2026 (2 angkatan, 356 siswa, 22.477 nilai).
 
 ---
 
 ## 5. Angka Cakupan Data Saat Ini
 
-Proposal dan roadmap menyebut 61 siswa dan ±4.000 baris `NilaiSiswa`
-(`DRAFT4_Proposal_Capstone.md:199-202`, `ML_Roadmap_Capstone.md:42`). Kondisi
-database sekarang berbeda jauh:
+Dokumen awal menyebut 61 siswa dan ±4.000 baris `NilaiSiswa`. Ekstraksi
+5 November 2026 menunjukkan kondisi aktual:
 
 | Tabel | Baris |
 |---|---|
-| `NilaiSiswa` | 11.726 |
-| `KehadiranSiswa` | 1.086 |
-| `Siswa` | 186 |
-| `Angkatan` | 1 |
-| `Kelas` | 6 |
-| `MataPelajaran` | 13 (11 yang terisi nilai) |
+| `NilaiSiswa` | 22.477 |
+| `KehadiranSiswa` | 2.101 |
+| `Siswa` | 356 |
+| `Angkatan` | 2 |
+| `Kelas` | 12 |
+| `MataPelajaran` | 13 (9 mapel umum yang sama pada kedua angkatan) |
 | `Role` / `User` | 3 / 3 |
-| **Total** | **13.197** |
 
-Sebaran nilai terlihat merata: setiap mapel 1.066 baris, tiap semester
-1.881-1.991, rata-rata 63 baris nilai per siswa. Angka pada proposal perlu
-diperbarui sebelum dipakai sebagai acuan.
+Angka ini sudah dipakai di `DRAFT4_Proposal_Capstone.md` §3.5 dan
+`ML_Roadmap_Capstone.md` §10. Rincian ekstraksi ada di
+`ml/data/raw/metadata.json`.
 
 ---
 
@@ -200,8 +211,8 @@ luar pengulangan nilai itu sendiri. Karena nilai antar semester sangat
 autocorrelated, B0 saja sudah kuat. Bila kehadiran tidak menambah apa-apa, klaim
 bahwa machine learning diperlukan tidak dapat dipertanggungjawabkan.
 
-Pemeriksaan pada 1.066 pasangan siswa-semester yang punya nilai dan kehadiran
-menunjukkan sinyal yang konsisten:
+Pemeriksaan awal pada 1.066 pasangan siswa-semester (satu angkatan, sebelum
+ekstraksi 2 angkatan) menunjukkan sinyal yang konsisten:
 
 | Kelompok alpa | n | Rata-rata nilai |
 |---|---|---|

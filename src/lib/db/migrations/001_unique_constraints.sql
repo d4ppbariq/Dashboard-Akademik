@@ -50,7 +50,7 @@ BEGIN
     RAISE NOTICE 'Sudah ada: uq_nilai_siswa_siswa_mapel_semester';
   END IF;
 END;
-$;
+$$;
 
 -- Kehadiran satu siswa pada satu semester hanya boleh satu baris.
 DO $$
@@ -68,7 +68,7 @@ BEGIN
     RAISE NOTICE 'Sudah ada: uq_kehadiran_siswa_siswa_semester';
   END IF;
 END;
-$;
+$$;
 
 -- Nama kelas unik dalam satu angkatan (mis. tidak ada dua "7A").
 DO $$
@@ -86,4 +86,4 @@ BEGIN
     RAISE NOTICE 'Sudah ada: uq_kelas_angkatan_nama';
   END IF;
 END;
-$;
+$$;

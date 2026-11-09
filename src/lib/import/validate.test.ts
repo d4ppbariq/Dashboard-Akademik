@@ -56,6 +56,21 @@ test("baris valid: nilai per mapel terbaca lewat kode", () => {
   );
 });
 
+test("kolom PKN terbaca sebagai nilai PPKn", () => {
+  for (const kolom of ["PKN", "PKn", "ppkn", "Pendidikan Kewarganegaraan"]) {
+    const r = validateRows([row({ [kolom]: 85 })], ctx());
+    assert.equal(r.ok, true, `kolom ${kolom} harus valid`);
+    assert.equal(r.rows[0].grades.length, 1, `kolom ${kolom} harus menghasilkan satu nilai`);
+    assert.equal(r.rows[0].grades[0].kode, "PPKn");
+    assert.equal(r.rows[0].grades[0].nilai, 85);
+    assert.equal(
+      r.warnings.some((w) => w.pesan.includes(kolom)),
+      false,
+      `kolom ${kolom} tidak boleh dianggap tidak dikenal`
+    );
+  }
+});
+
 test("nilai 0 dan 100 keduanya valid", () => {
   const r = validateRows([row({ MTK: 0, BIN: 100 })], ctx());
   assert.equal(r.ok, true);
@@ -150,6 +165,23 @@ test("file dengan kolom kehadiran: angka dibaca, negatif ditolak", () => {
   const bad = validateRows([row({ Sakit: -1 })], ctx());
   assert.equal(bad.ok, false);
   assert.match(bad.errors[0].pesan, /tidak boleh negatif/);
+});
+
+test("total kehadiran melebihi hari efektif ditolak", () => {
+  const r = validateRows(
+    [row({ Sakit: 50, Izin: 30, "Tanpa Keterangan": 30, MTK: 80 })],
+    ctx()
+  );
+  assert.equal(r.ok, false);
+  assert.match(r.errors[0].pesan, /melebihi 100 hari efektif/);
+});
+
+test("total kehadiran tepat sama dengan hari efektif diterima", () => {
+  const r = validateRows(
+    [row({ Sakit: 40, Izin: 30, "Tanpa Keterangan": 30, MTK: 80 })],
+    ctx()
+  );
+  assert.equal(r.ok, true);
 });
 
 test("kolom kehadiran non-numerik jadi peringatan, diisi 0", () => {

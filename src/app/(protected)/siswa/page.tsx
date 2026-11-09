@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SiswaDetailDialog } from "@/components/siswa/siswa-detail-dialog";
 import { saringSiswa } from "@/lib/siswa-search";
+import { hariHadir } from "@/lib/attendance/calendar";
 
 interface SiswaPageProps {
   searchParams: Promise<{ angkatan?: string; kelas?: string; q?: string; semua?: string }>;
@@ -67,7 +68,7 @@ export default async function SiswaPage({ searchParams }: SiswaPageProps) {
       rataNilai: Math.round(rata * 10) / 10,
       totalAlpa: kehadiran.reduce((a, k) => a + k.tanpa_keterangan, 0),
       totalHadir: kehadiran.reduce(
-        (a, k) => a + 36 - k.sakit - k.izin - k.tanpa_keterangan,
+        (a, k) => a + hariHadir(k.sakit, k.izin, k.tanpa_keterangan, k.semester),
         0
       ),
     });

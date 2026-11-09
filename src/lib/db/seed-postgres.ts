@@ -110,6 +110,7 @@ export function buildPostgresSeed(): Database {
     { id: "menu-permissions", nama_menu: "Manajemen Permission", path: "/admin/permissions", icon: "KeyRound", urutan: 11, grup: "Sistem" },
     { id: "menu-menus", nama_menu: "Manajemen Menu", path: "/admin/menus", icon: "MenuSquare", urutan: 12, grup: "Sistem" },
     { id: "menu-routes", nama_menu: "Manajemen Rute", path: "/admin/routes", icon: "Waypoints", urutan: 13, grup: "Sistem" },
+    { id: "menu-prediksi", nama_menu: "Prediksi Nilai", path: "/prediksi", icon: "TrendingUp", urutan: 14, grup: "Analitik" },
   ];
 
   const routes = [
@@ -136,6 +137,7 @@ export function buildPostgresSeed(): Database {
     { id: "route-21", path: "/api/rbac", method: "POST" as const, deskripsi: "Simpan konfigurasi RBAC" },
     { id: "route-22", path: "/api/rbac", method: "DELETE" as const, deskripsi: "Hapus konfigurasi RBAC" },
     { id: "route-23", path: "/api/siswa/[id]", method: "GET" as const, deskripsi: "Detail nilai dan kehadiran satu siswa" },
+    { id: "route-24", path: "/prediksi", method: "GET" as const, deskripsi: "Halaman prediksi nilai (rule engine B2)" },
   ];
 
   const role_permissions = [
@@ -157,10 +159,10 @@ export function buildPostgresSeed(): Database {
   const role_menus = [
     ...menus.map((m) => ({ role_id: "role-superadmin", menu_id: m.id })),
     ...[
-      "menu-dashboard", "menu-kelas", "menu-siswa", "menu-preview", "menu-import",
-      "menu-akademik", "menu-master", "menu-audit",
+      "menu-dashboard", "menu-kelas", "menu-siswa", "menu-preview", "menu-prediksi",
+      "menu-import", "menu-akademik", "menu-master", "menu-audit",
     ].map((menu_id) => ({ role_id: "role-operator", menu_id })),
-    ...["menu-dashboard", "menu-kelas", "menu-siswa"].map((menu_id) => ({
+    ...["menu-dashboard", "menu-kelas", "menu-siswa", "menu-prediksi"].map((menu_id) => ({
       role_id: "role-guru",
       menu_id,
     })),
@@ -171,11 +173,11 @@ const role_routes = [
     ...[
       "route-1", "route-2", "route-3", "route-4", "route-5", "route-6", "route-7",
       "route-8", "route-9", "route-10", "route-11", "route-12", "route-13", "route-14",
-      "route-15", "route-23",
+      "route-15", "route-23", "route-24",
     ].map((route_id) => ({ role_id: "role-operator", route_id })),
     // Guru mendapat /api/siswa/[id] karena endpoint ini read-only dan
     // bersamaan dengan permission siswa.read yang memang dimiliki guru.
-    ...["route-1", "route-2", "route-3", "route-23"].map((route_id) => ({ role_id: "role-guru", route_id })),
+    ...["route-1", "route-2", "route-3", "route-23", "route-24"].map((route_id) => ({ role_id: "role-guru", route_id })),
   ];
 
   return {

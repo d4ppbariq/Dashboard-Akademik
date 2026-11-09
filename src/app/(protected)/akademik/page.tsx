@@ -8,6 +8,7 @@ import { SiswaFormDialog } from "@/components/siswa/siswa-form-dialog";
 import { ClearKelasDialog } from "@/components/siswa/clear-kelas-dialog";
 import { DeleteButton } from "@/components/master/master-forms";
 import { deleteSiswa } from "@/lib/siswa/actions";
+import { hariHadir } from "@/lib/attendance/calendar";
 
 interface AkademikPageProps {
   searchParams: Promise<{ angkatan?: string; kelas?: string }>;
@@ -52,7 +53,7 @@ export default async function AkademikPage({ searchParams }: AkademikPageProps) 
       rataNilai: Math.round(rata * 10) / 10,
       totalAlpa: kehadiran.reduce((a, k) => a + k.tanpa_keterangan, 0),
       totalHadir: kehadiran.reduce(
-        (a, k) => a + 36 - k.sakit - k.izin - k.tanpa_keterangan,
+        (a, k) => a + hariHadir(k.sakit, k.izin, k.tanpa_keterangan, k.semester),
         0
       ),
     });

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireAuth, hasPermission } from "@/lib/auth/dal";
 import { getDb, persist, newId } from "@/lib/db/store";
 import { pushAudit } from "@/lib/audit";
+import { hariEfektif } from "@/lib/attendance/calendar";
 
 async function guard() {
   const user = await requireAuth();
@@ -22,14 +23,23 @@ const NilaiSchema = z.object({
   id: z.string().optional(),
 });
 
-const KehadiranSchema = z.object({
-  siswa_id: z.string().min(1),
-  semester: z.coerce.number().int().min(1).max(6),
-  sakit: z.coerce.number().int().min(0),
-  izin: z.coerce.number().int().min(0),
-  tanpa_keterangan: z.coerce.number().int().min(0),
-  id: z.string().optional(),
-});
+const KehadiranSchema = z
+  .object({
+    siswa_id: z.string().min(1),
+    semester: z.coerce.number().int().min(1).max(6),
+    sakit: z.coerce.number().int().min(0),
+    izin: z.coerce.number().int().min(0),
+    tanpa_keterangan: z.coerce.number().int().min(0),
+    id: z.string().optional(),
+  })
+  .refine(
+    (v) =>
+      v.sakit + v.izin + v.tanpa_keterangan <= hariEfektif(v.semester),
+    {
+      message: "Total kehadiran melebihi hari efektif semester",
+      path: ["sakit"],
+    }
+  );
 
 export async function addNilai(formData: FormData): Promise<{ error?: string }> {
   const g = await guard();
@@ -156,7 +166,9 @@ export async function upsertKehadiran(formData: FormData): Promise<{ error?: str
     id: formData.get("id") || undefined,
   });
   if (!parsed.success) {
-    return { error: "Data kehadiran tidak valid" };
+    return {
+      error: parsed.error.issues[0]?.message ?? "Data kehadiran tidak valid",
+    };
   }
 
   const db = await getDb();

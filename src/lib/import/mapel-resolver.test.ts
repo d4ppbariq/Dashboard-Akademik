@@ -51,6 +51,14 @@ test("alias umum dikenali", () => {
   assert.equal(kode("Mat."), "MTK");
 });
 
+test("alias PKN dikenali sebagai PPKn", () => {
+  assert.equal(kode("PKN"), "PPKn");
+  assert.equal(kode("PKn"), "PPKn");
+  assert.equal(kode("pkn"), "PPKn");
+  assert.equal(kode("Pendidikan Kewarganegaraan"), "PPKn");
+  assert.equal(resolveKolom("PKN", mapels).kind, "alias");
+});
+
 test("mapel kurikulum lama sudah ada di katalog dan bisa dicocokkan", () => {
   // SBK/PRK kini bagian dari katalog global. Penyaringan per angkatan terjadi
   // di lapisan chart, bukan dengan menyembunyikannya dari resolver.

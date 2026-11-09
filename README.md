@@ -1,6 +1,6 @@
 # Dashboard Akademik Nesaciba
 
-Dashboard akademik SMPN 1 Cibalong — aplikasi web untuk mengelola dan memantau data akademik: angkatan, kelas, siswa, nilai, dan kehadiran, lengkap dengan manajemen RBAC (user, role, permission, menu, rute) serta import data dari Excel.
+Dashboard akademik SMPN 1 Cibalong - aplikasi web untuk mengelola dan memantau data akademik: angkatan, kelas, siswa, nilai, dan kehadiran, lengkap dengan manajemen RBAC (user, role, permission, menu, rute) serta import data dari Excel.
 
 Dibangun dengan **Next.js 16**, **React 19**, dan menyimpan data di **PostgreSQL**.
 
@@ -14,8 +14,7 @@ Dibangun dengan **Next.js 16**, **React 19**, dan menyimpan data di **PostgreSQL
 - Recharts (grafik), Zod (validasi), jose (sesi JWT via cookie)
 - `@e965/xlsx` (import Excel)
 
-Nama tampilan aplikasi di UI adalah **SINAR**. Antarmuka hanya memiliki
-tema terang.
+Nama tampilan aplikasi di UI adalah **SINAR**. Antarmuka hanya memiliki tema terang.
 
 ## Arsitektur Data
 
@@ -23,78 +22,139 @@ Aplikasi memakai pola data layer di `src/lib/db/` yang membaca/menulis seluruh d
 
 ## Persyaratan
 
-- Node.js 20+
-- PostgreSQL 14+ (lingkungan pengembangan saat ini memakai 17.6)
+- Node.js **20.12+** (disarankan Node.js 22 LTS)
+- PostgreSQL **14+** (lingkungan pengembangan saat ini memakai 17.6)
+- Git dan npm
+- `psql` atau DBeaver/pgAdmin untuk membuat database
 
-## Setup
+> Node.js 20.12+ diperlukan karena CLI database memakai `process.loadEnvFile`.
 
-1. **Install dependensi**
-   ```bash
-   npm install
-   ```
+## Setup dari Nol untuk Collaborator
 
-2. **Buat file `.env`** (salin dari `.env.example`). Semua variabel di bawah wajib
-   diisi; `SESSION_SECRET` minimal 32 karakter, `COOKIE_SECURE` harus tepat
-   `"true"` atau `"false"`:
-   ```
-   # .env
-   SESSION_SECRET=<random-64-hex>
-   COOKIE_SECURE=false
-   DATABASE_URL=postgres://USER:PASSWORD@localhost:5432/nesaciba
-   SEED_SUPERADMIN_PASSWORD=<password-akun-superadmin>
-   SEED_OPERATOR_PASSWORD=<password-akun-operator>
-   SEED_GURU_PASSWORD=<password-akun-guru>
-   ```
-   > Tidak ada nilai cadangan di dalam kode. `SESSION_SECRET` dan `COOKIE_SECURE`
-   > yang kosong membuat aplikasi **gagal menyala** dengan pesan yang menyebut
-   > variabelnya, bukan berjalan dengan nilai yang tidak aman.
-   > `COOKIE_SECURE=false` hanya untuk aplikasi yang diakses via HTTP (LAN tanpa
-   > TLS). Akses lewat HTTPS memakai `true`.
-   > Generate `SESSION_SECRET`:
-   > `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+### 1. Clone dan install dependensi
 
-3. **Siapkan database** (buat schema lalu isi data awal):
-   ```bash
-   npm run db:migrate   # terapkan schema.sql (15 tabel)
-   npm run db:seed      # isi RBAC + 13 mapel, data akademik kosong
-   # atau sekali jalan:
-   npm run db:reset
-   ```
-   > Catatan: `db:migrate` untuk setup database baru. Data akademik sengaja kosong dan diisi langsung oleh operator melalui aplikasi.
-   > Mapel default berisi 13 entri: 11 mapel kurikulum aktif (PABP, PPKn, BIN, MTK, IPA, IPS, BIG, MUS, PJK, INF, SUN) plus SBK dan PRK yang merupakan mapel kurikulum lama. Katalog bersifat global, dan grafik menyembunyikan otomatis mapel yang tidak punya nilai pada angkatan terpilih.
-   > `db:seed` membaca password akun awal dari `SEED_*` di `.env`, lalu
-   > menyimpannya sebagai hash. Password tidak pernah dicetak ke konsol dan tidak
-   > ada yang tersimpan di repositori.
+```bash
+git clone <URL_REPOSITORY>
+cd "DASHBOARD AKADEMIK NESACIBA"
+npm ci
+```
 
-4. **Jalankan aplikasi**
-   ```bash
-   npm run dev
-   ```
-   Buka http://localhost:3000
+Gunakan `npm ci` agar versi dependensi sama dengan `package-lock.json`.
+
+### 2. Siapkan PostgreSQL
+
+Pastikan service PostgreSQL sudah berjalan. Buat role dan database (ganti password contoh):
+
+```bash
+psql -U postgres -c "CREATE ROLE nesaciba LOGIN PASSWORD 'ganti-password-kuat';"
+psql -U postgres -c "CREATE DATABASE nesaciba OWNER nesaciba;"
+```
+
+Di Windows, jika `psql` tidak ada di `PATH`, gunakan path instalasi PostgreSQL, misalnya:
+
+```powershell
+& "C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -c "CREATE ROLE nesaciba LOGIN PASSWORD 'ganti-password-kuat';"
+& "C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -c "CREATE DATABASE nesaciba OWNER nesaciba;"
+```
+
+Alternatifnya, buat role dan database lewat DBeaver/pgAdmin.
+
+### 3. Buat file `.env`
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Atau di bash:
+
+```bash
+cp .env.example .env
+```
+
+Isi variabel wajib di `.env`:
+
+```env
+SESSION_SECRET=<random-64-hex>
+COOKIE_SECURE=false
+DATABASE_URL=postgres://nesaciba:ganti-password-kuat@localhost:5432/nesaciba
+SEED_SUPERADMIN_PASSWORD=<password-akun-superadmin>
+SEED_OPERATOR_PASSWORD=<password-akun-operator>
+SEED_GURU_PASSWORD=<password-akun-guru>
+```
+
+Variabel opsional untuk pipeline ML:
+
+```env
+ML_DATABASE_URL=
+POST_DATABASE_URL=
+```
+
+Catatan:
+
+- `SESSION_SECRET` minimal 32 karakter. Generate dengan:
+  ```bash
+  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+  ```
+- `COOKIE_SECURE` harus tepat `"true"` atau `"false"`. Gunakan `false` hanya untuk HTTP/LAN tanpa TLS.
+- Jika password database mengandung karakter khusus, URL-encode nilainya di `DATABASE_URL`.
+- `SEED_*` hanya dipakai saat seed pertama. Ganti isinya tidak mengubah password pada database yang sudah berisi data.
+- Jangan commit `.env`.
+
+### 4. Setup database
+
+Untuk database baru yang masih kosong:
+
+```bash
+npm run db:setup
+```
+
+Perintah ini menjalankan:
+
+1. `schema.sql` (schema dasar)
+2. seed RBAC, akun awal, dan mapel default
+3. seluruh migrasi di `src/lib/db/migrations/` secara berurutan
+
+`db:setup` menolak berjalan jika tabel `"Role"` sudah ada, supaya tidak menimpa data yang sudah terisi.
+
+Alternatif manual:
+
+```bash
+npm run db:migrate
+npm run db:seed
+psql -U nesaciba -d nesaciba -f src/lib/db/migrations/001_unique_constraints.sql
+psql -U nesaciba -d nesaciba -f src/lib/db/migrations/002_api_siswa_route.sql
+psql -U nesaciba -d nesaciba -f src/lib/db/migrations/003_prediksi.sql
+psql -U nesaciba -d nesaciba -f src/lib/db/migrations/004_prediksi_route.sql
+```
+
+### 5. Jalankan aplikasi
+
+```bash
+npm run dev
+```
+
+Buka http://localhost:3000
 
 ## Akun Login Default
 
-| Peran      | Email                        | Password              |
-|------------|------------------------------|-----------------------|
-| Superadmin | `superadmin@nesaciba.sch.id` | `SEED_SUPERADMIN_PASSWORD` |
-| Operator   | `operator@nesaciba.sch.id`   | `SEED_OPERATOR_PASSWORD`   |
-| Guru       | `guru@nesaciba.sch.id`       | `SEED_GURU_PASSWORD`       |
+| Peran      | Email                        | Password                    |
+|------------|------------------------------|-----------------------------|
+| Superadmin | `superadmin@nesaciba.sch.id` | `SEED_SUPERADMIN_PASSWORD`  |
+| Operator   | `operator@nesaciba.sch.id`   | `SEED_OPERATOR_PASSWORD`    |
+| Guru       | `guru@nesaciba.sch.id`       | `SEED_GURU_PASSWORD`        |
 
-> Password tidak disimpan di repositori, dalam bentuk apa pun. Nilai diambil dari
-> variabel `SEED_*` di `.env` lalu di-hash saat `npm run db:seed` berjalan.
-> Tiga nilai terpisah, bukan satu untuk semua, agar kelalaian pada satu akun tidak
-> membuka akun lain.
->
-> Variabel `SEED_*` hanya dibaca saat tabel `Role` masih kosong, yaitu pada
-> `db:seed`/`db:reset` atau pada database yang benar-benar baru. Mengganti isi
-> `.env` tidak mengubah password pada database yang sudah berisi data.
+> Password tidak disimpan di repositori dalam bentuk apa pun. Nilai diambil dari
+> variabel `SEED_*` di `.env` lalu di-hash saat seed berjalan. Tiga nilai
+> terpisah, bukan satu untuk semua, agar kelalaian pada satu akun tidak membuka
+> akun lain.
 
-### Mengganti password tanpa merusak data
+## Mengganti Password Tanpa Merusak Data
 
-Untuk instalasi yang sudah berjalan, **jangan** memakai `db:reset` hanya demi
-mengganti password — perintah itu menulis ulang seluruh tabel dan menghapus data
-akademik. Gunakan saja **Manajemen User → ikon kunci** pada baris akun yang
-dituju; dialognya tersedia untuk semua akun, termasuk akun Anda sendiri.
+Untuk instalasi yang sudah berjalan, **jangan** memakai `db:reset` atau
+`db:seed` hanya demi mengganti password - perintah itu menulis ulang seluruh
+tabel dan menghapus data akademik. Gunakan **Manajemen User -> ikon kunci** pada
+baris akun yang dituju; dialognya tersedia untuk semua akun, termasuk akun Anda
+sendiri.
 
 ### Pemulihan bila password superadmin hilang
 
@@ -120,17 +180,21 @@ berikutnya tanpa restart server.
 
 ## Script
 
-| Perintah        | Fungsi                                  |
-|-----------------|-----------------------------------------|
-| `npm run dev`   | Jalankan server development              |
-| `npm run build` | Build produksi                           |
-| `npm run start` | Jalankan server produksi                 |
-| `npm run lint`  | Jalankan ESLint                          |
-| `npm run typecheck` | Cek tipe tanpa emit                    |
-| `npm run test`  | Jalankan unit test (`node --test`)       |
-| `npm run db:migrate` | Terapkan schema ke database          |
-| `npm run db:seed`    | Isi data awal (RBAC + mapel)         |
-| `npm run db:reset`   | migrate + seed sekali jalan          |
+| Perintah             | Fungsi                                                              |
+|----------------------|---------------------------------------------------------------------|
+| `npm run dev`        | Jalankan server development                                          |
+| `npm run build`      | Build produksi                                                       |
+| `npm run start`      | Jalankan server produksi                                             |
+| `npm run lint`       | Jalankan ESLint                                                      |
+| `npm run typecheck`  | Cek tipe tanpa emit                                                  |
+| `npm run test`       | Jalankan unit test (`node --test`)                                   |
+| `npm run db:setup`   | Schema + seed + semua migrasi (khusus database kosong)               |
+| `npm run db:migrate` | Terapkan `schema.sql` saja                                           |
+| `npm run db:seed`    | Isi ulang data awal; menimpa seluruh tabel                           |
+| `npm run db:reset`   | `db:migrate` + `db:seed`; menimpa data, tanpa menjalankan migrasi     |
+
+> Untuk database baru, gunakan `npm run db:setup`. `db:reset` tidak menjalankan
+> file migrasi di `src/lib/db/migrations/`.
 
 ## Testing
 
@@ -142,6 +206,7 @@ Test menggunakan `node:test` + `tsx`, tanpa framework tambahan. Berkas
 - `src/lib/siswa-search.test.ts`
 - `src/lib/auth/token.test.ts`, `route-access.test.ts`, `login-throttle.test.ts`, `password-policy.test.ts`
 - `src/server/service/statistics.test.ts`
+- `src/server/service/prediksi.test.ts`
 
 Modul yang diuji sengaja dibuat murni (tanpa I/O, tanpa `"use server"`) agar
 dapat diuji tanpa database. Bagian session, throttle login, dan keputusan akses
@@ -150,36 +215,89 @@ rute karena itu dipisah ke `src/lib/auth/token.ts`, `login-throttle.ts`, dan
 
 ## Migrasi Database
 
-`npm run db:migrate` hanya menerapkan `src/lib/db/schema.sql`. Perubahan
-schema berikutnya diletakkan di `src/lib/db/migrations/` dan **dijalankan
-manual** lewat `psql` atau DBeaver — belum ada migration runner.
+`npm run db:setup` sudah menjalankan seluruh migrasi untuk database baru.
+Perubahan schema berikutnya diletakkan di `src/lib/db/migrations/` dan
+**dijalankan manual** lewat `psql` atau DBeaver - belum ada migration runner
+terpisah.
 
 | Berkas | Isi | Status |
 |---|---|---|
-| `001_unique_constraints.sql` | UNIQUE untuk `NilaiSiswa`, `KehadiranSiswa`, `Kelas` | belum dijalankan |
-| `002_api_siswa_route.sql` | Daftarkan `GET /api/siswa/[id]` di tabel `Route` + grant operator & guru | belum dijalankan |
+| `001_unique_constraints.sql` | UNIQUE untuk `NilaiSiswa`, `KehadiranSiswa`, `Kelas` | dijalankan otomatis oleh `db:setup`; manual untuk instalasi lama |
+| `002_api_siswa_route.sql` | Daftarkan `GET /api/siswa/[id]` di tabel `Route` + grant operator & guru | dijalankan otomatis oleh `db:setup`; wajib untuk instalasi lama |
+| `003_prediksi.sql` | Tabel `Prediksi` untuk hasil model ML | dijalankan otomatis oleh `db:setup`; wajib untuk fitur `/prediksi` |
+| `004_prediksi_route.sql` | Daftarkan `/prediksi` di `Route` + `Menu` dan grant role | dijalankan otomatis oleh `db:setup`; idempoten |
 
-> `002` **wajib** dijalankan pada instalasi yang sudah ada. `hasRouteAccess` kini
-> fail-closed: path yang tidak terdaftar di `Route` berarti ditolak, bukan
-> otomatis dibuka. Tanpa migrasi ini, `/api/siswa/[id]` akan menjawab 403 untuk
-> semua role, termasuk guru.
+Contoh menjalankan manual di PowerShell:
 
-Lihat `src/lib/db/migrations/README.md` untuk urutan, pemeriksaan duplikat yang
-wajib dijalankan lebih dulu, dan rollback.
+```powershell
+psql $env:DATABASE_URL -f src/lib/db/migrations/001_unique_constraints.sql
+psql $env:DATABASE_URL -f src/lib/db/migrations/002_api_siswa_route.sql
+psql $env:DATABASE_URL -f src/lib/db/migrations/003_prediksi.sql
+psql $env:DATABASE_URL -f src/lib/db/migrations/004_prediksi_route.sql
+```
+
+> `002` wajib dijalankan pada instalasi yang sudah ada. `hasRouteAccess`
+> fail-closed: path yang tidak terdaftar di `Route` ditolak, bukan otomatis
+> dibuka.
+>
+> `003` wajib agar halaman `/prediksi` tidak gagal karena tabel `"Prediksi"`
+> belum ada.
+
+Lihat `src/lib/db/migrations/README.md` untuk urutan, pemeriksaan duplikat, dan
+rollback.
+
+## Troubleshooting
+
+### `database "nesaciba" does not exist`
+
+Database belum dibuat. Ulangi langkah pembuatan database di PostgreSQL, lalu
+sesuaikan `DATABASE_URL`.
+
+### `SEED_SUPERADMIN_PASSWORD tidak diisi`
+
+Isi ketiga variabel `SEED_*` di `.env` sebelum menjalankan `db:setup`,
+`db:seed`, atau `db:reset`.
+
+### `SESSION_SECRET terlalu pendek`
+
+Gunakan minimal 32 karakter. Generate nilai baru dengan perintah di bagian
+konfigurasi `.env`, lalu restart server.
+
+### `relation "Prediksi" does not exist`
+
+Jalankan migrasi `003_prediksi.sql`. Untuk database baru, gunakan
+`npm run db:setup`.
+
+### Port 3000 sudah dipakai
+
+Hentikan proses `next dev` lain, atau jalankan dengan port berbeda:
+
+```bash
+npm run dev -- -p 3001
+```
+
+### Halaman protected mengembalikan 404 setelah dev server lama
+
+Hentikan server, hapus cache dev, lalu jalankan ulang:
+
+```powershell
+Remove-Item -LiteralPath ".next\dev" -Recurse -Force
+npm run dev
+```
 
 ## Struktur
 
-- `src/app` — halaman & route API (App Router)
-- `src/components` — komponen UI
-- `src/lib/db` — data layer + schema + seed
-- `src/lib/import` — validasi, resolusi kolom mapel, dan penulisan hasil impor
-- `src/lib/auth` — autentikasi & otorisasi
-- `src/lib/master`, `src/lib/siswa`, `src/lib/admin` — action per modul
-- `src/server/service` — logika statistik/dashboard
-- `src/proxy.ts` — proteksi rute berbasis sesi (pengganti `middleware.ts` di Next 16)
-- `src/scripts` — CLI utilitas database
-- `docs` — PRD, roadmap ML, dan protokol evaluasi
-- `*.test.ts` — unit test, berdampingan dengan modul yang diuji
+- `src/app` - halaman & route API (App Router)
+- `src/components` - komponen UI
+- `src/lib/db` - data layer + schema + seed
+- `src/lib/import` - validasi, resolusi kolom mapel, dan penulisan hasil impor
+- `src/lib/auth` - autentikasi & otorisasi
+- `src/lib/master`, `src/lib/siswa`, `src/lib/admin` - action per modul
+- `src/server/service` - logika statistik/dashboard
+- `src/proxy.ts` - proteksi rute berbasis sesi (pengganti `middleware.ts` di Next 16)
+- `src/scripts` - CLI utilitas database
+- `docs` - PRD, roadmap ML, dan protokol evaluasi
+- `*.test.ts` - unit test, berdampingan dengan modul yang diuji
 
 ## Dokumen
 
@@ -217,5 +335,3 @@ wajib dijalankan lebih dulu, dan rollback.
 - Pola persistensi menulis ulang seluruh tabel (`TRUNCATE ... CASCADE` lalu
   insert ulang dalam satu transaksi). Diterima untuk skala sekolah, tetapi
   perlu ditinjau bila volume data bertambah.
-
-
