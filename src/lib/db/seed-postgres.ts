@@ -111,6 +111,7 @@ export function buildPostgresSeed(): Database {
     { id: "menu-menus", nama_menu: "Manajemen Menu", path: "/admin/menus", icon: "MenuSquare", urutan: 12, grup: "Sistem" },
     { id: "menu-routes", nama_menu: "Manajemen Rute", path: "/admin/routes", icon: "Waypoints", urutan: 13, grup: "Sistem" },
     { id: "menu-prediksi", nama_menu: "Prediksi Nilai", path: "/prediksi", icon: "TrendingUp", urutan: 14, grup: "Analitik" },
+    { id: "menu-ganti-password", nama_menu: "Ganti Password", path: "/ganti-password", icon: "KeyRound", urutan: 15, grup: "Akun" },
   ];
 
   const routes = [
@@ -138,6 +139,7 @@ export function buildPostgresSeed(): Database {
     { id: "route-22", path: "/api/rbac", method: "DELETE" as const, deskripsi: "Hapus konfigurasi RBAC" },
     { id: "route-23", path: "/api/siswa/[id]", method: "GET" as const, deskripsi: "Detail nilai dan kehadiran satu siswa" },
     { id: "route-24", path: "/prediksi", method: "GET" as const, deskripsi: "Halaman prediksi nilai (rule engine B2)" },
+    { id: "route-ganti-password", path: "/ganti-password", method: "GET" as const, deskripsi: "Ganti password akun superadmin sendiri" },
   ];
 
   const role_permissions = [

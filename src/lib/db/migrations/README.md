@@ -18,6 +18,7 @@ migrasi secara manual sesuai urutan di bawah.
 | `003_prediksi.sql` | Tabel `Prediksi` untuk hasil model ML (A1 dan lanjutan) | ✅ dijalankan 5 November 2026 |
 | `004_prediksi_route.sql` | Daftarkan `/prediksi` di `Route` + `Menu`, grant superadmin/operator/guru | ✅ dijalankan 8 November 2026 |
 | `005_nis_format.sql` | CHECK agar `Siswa.nis` hanya berisi angka (leading zero tetap aman) | ✅ dijalankan 12 November 2026 |
+| `006_ganti_password.sql` | Route + menu Ganti Password, grant hanya superadmin; tidak mengubah akun | ☐ jalankan manual pada instalasi lama |
 
 > **Kapan wajib menjalankan `002`?** `hasRouteAccess` kini fail-closed: path yang
 > tidak terdaftar di `Route` berarti ditolak. Endpoint `/api/siswa/[id]` tidak
@@ -36,6 +37,7 @@ psql -U <user> -d <dbname> -f src/lib/db/migrations/002_api_siswa_route.sql
 psql -U <user> -d <dbname> -f src/lib/db/migrations/003_prediksi.sql
 psql -U <user> -d <dbname> -f src/lib/db/migrations/004_prediksi_route.sql
 psql -U <user> -d <dbname> -f src/lib/db/migrations/005_nis_format.sql
+psql -U <user> -d <dbname> -f src/lib/db/migrations/006_ganti_password.sql
 ```
 
 Atau di DBeaver: **klik kanan file → Execute SQL Script**.
@@ -60,6 +62,20 @@ DELETE FROM "NilaiSiswa" a
 ```
 
 ## Rollback
+
+`006` hanya menambahkan registrasi rute dan menu. Setelah diterapkan, periksa
+query verifikasi di akhir file: satu rute GET dan satu menu, dengan grant hanya
+`role-superadmin`. Menu yang sama muncul di sidebar desktop dan menu mobile.
+Jangan menjalankan seed/reset pada database terisi untuk mengaktifkan fitur ini.
+Password baru berlaku untuk login berikutnya; sesi yang sudah ada tetap valid.
+Rollback registrasi (tidak mengembalikan password yang pernah diganti):
+
+```sql
+DELETE FROM "RoleMenu" WHERE menu_id IN (SELECT id FROM "Menu" WHERE path = '/ganti-password');
+DELETE FROM "Menu" WHERE path = '/ganti-password';
+DELETE FROM "RoleRoute" WHERE route_id IN (SELECT id FROM "Route" WHERE path = '/ganti-password' AND method = 'GET');
+DELETE FROM "Route" WHERE path = '/ganti-password' AND method = 'GET';
+```
 
 `001`:
 
