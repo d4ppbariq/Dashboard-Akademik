@@ -1,6 +1,6 @@
 # Rencana — Konfigurasi Hari Efektif & Validasi Kehadiran
 
-Status: **diimplementasikan sebagian** · 5 November 2026
+Status: **diimplementasikan sebagian** · 12 November 2026
 Dokumen terkait: `ML_Roadmap_Capstone.md`, `Protokol_Evaluasi_A1.md`, `docs/DRAFT4_Proposal_Capstone.md`
 
 > **Catatan pelaksanaan.** Denominator yang dipakai bukan 36, melainkan
@@ -8,8 +8,8 @@ Dokumen terkait: `ML_Roadmap_Capstone.md`, `Protokol_Evaluasi_A1.md`, `docs/DRAF
 > membuat rasio negatif. Modul `src/lib/attendance/calendar.ts`, penggantian
 > dua literal, validasi impor, validasi form manual, dan test sudah
 > diimplementasikan. Langkah 5 (ringkasan kualitas kehadiran di halaman impor)
-> belum dikerjakan. Data aktual sekarang 2 angkatan, 356 siswa, dan 3 baris
-> dengan total absen >36 (bukan 2).
+> belum dikerjakan. Data aktual setelah deduplikasi: 2 angkatan, 351 siswa, dan
+> 3 baris dengan total absen >36.
 
 ---
 
@@ -34,7 +34,7 @@ kehilangan hari melebihi 36:
 | 232470157 | Wildan Reo Alfandi | 5 | 38 | 1 | 0 | 39 |
 | 232470165 | Bagas Aryanta Pamungkas | 5 | 6 | 0 | 58 | 64 |
 
-> **Data 5 November 2026 (2 angkatan).** Ada satu baris tambahan yang juga
+> **Data 12 November 2026 (2 angkatan).** Ada satu baris tambahan yang juga
 > melebihi 36: Zahra Amelia, semester 3, total 42 hari. Karena itu jumlah
 > baris bermasalah pada dataset saat ini adalah **3**, bukan 2.
 
@@ -42,7 +42,7 @@ Deret semester Bagas: 8 → 11 → 6 → 26 → **64** → 17. Pola lonjakan pad
 semester, bukan ketidakhadiran yang wajar. Diduga kesalahan input operator.
 
 Distribusinya sendiri sehat — p50 3 hari, p95 16 hari, p99 22,2 hari, mean
-4,60. Jadi yang bermasalah adalah 2 baris tersebut, bukan konstantanya.
+4,60. Jadi yang bermasalah adalah 3 baris tersebut, bukan konstantanya.
 
 **1.2 Angka yang sama tidak bisa diturunkan dari data.**
 Hari efektif adalah properti kalender sekolah, bukan statistik. Menyimpulkan
@@ -171,20 +171,21 @@ Berkas `src/lib/import/validate.test.ts` (tambahan):
   rasio kehadiran di pipeline tidak boleh dibuat ulang, harus sama persis dengan
   modul aplikasi.
 - `DRAFT4_Proposal_Capstone.md` §3.5 — **sudah diperbarui** dengan angka
-  ekstraksi 5 November 2026 (2 angkatan, 356 siswa, 22.477 nilai).
+  ekstraksi 12 November 2026 setelah deduplikasi (2 angkatan, 351 siswa,
+  22.477 nilai).
 
 ---
 
 ## 5. Angka Cakupan Data Saat Ini
 
 Dokumen awal menyebut 61 siswa dan ±4.000 baris `NilaiSiswa`. Ekstraksi
-5 November 2026 menunjukkan kondisi aktual:
+12 November 2026 setelah deduplikasi menunjukkan kondisi aktual:
 
 | Tabel | Baris |
 |---|---|
 | `NilaiSiswa` | 22.477 |
 | `KehadiranSiswa` | 2.101 |
-| `Siswa` | 356 |
+| `Siswa` | 351 |
 | `Angkatan` | 2 |
 | `Kelas` | 12 |
 | `MataPelajaran` | 13 (9 mapel umum yang sama pada kedua angkatan) |

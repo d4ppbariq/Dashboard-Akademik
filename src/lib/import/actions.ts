@@ -6,6 +6,7 @@ import { getDb, persist, createIdAllocator } from "@/lib/db/store";
 import { pushAudit } from "@/lib/audit";
 import type { Database } from "@/lib/db/types";
 import { applyRows } from "@/lib/import/apply";
+import { nisDasar } from "@/lib/nis";
 import {
   validateRows,
   type ImportError,
@@ -38,7 +39,9 @@ async function guard(): Promise<{ user: Awaited<ReturnType<typeof requireAuth>>;
 function siswaByNis(db: Database): Map<string, SiswaRow> {
   const map = new Map<string, SiswaRow>();
   for (const s of db.siswa) {
-    map.set(s.nis, { id: s.id, kelas_id: s.kelas_id, nis: s.nis, nama: s.nama, jenis_kelamin: s.jenis_kelamin });
+    const row = { id: s.id, kelas_id: s.kelas_id, nis: s.nis, nama: s.nama, jenis_kelamin: s.jenis_kelamin };
+    map.set(s.nis, row);
+    map.set(nisDasar(s.nis), row);
   }
   return map;
 }

@@ -35,6 +35,12 @@ class LeakageTests(unittest.TestCase):
         )
         self.assertEqual(len(latest_prediction_rows(complete)), 0)
 
+    def test_publication_requires_previous_semester(self):
+        single = build_supervised(
+            make_panel(1), target_kode="MTK", require_target=False
+        )
+        self.assertEqual(len(latest_prediction_rows(single)), 0)
+
     def test_attendance_cumulative_does_not_include_future_semester(self):
         data = build_supervised(make_panel(5), target_kode="MTK")
         early = data[data["semester_asal"] == 2].iloc[0]

@@ -427,5 +427,8 @@ def v3_feature_columns(df: pd.DataFrame) -> list[str]:
 
 def latest_prediction_rows(df: pd.DataFrame) -> pd.DataFrame:
     return df[
-        (df["is_latest_observed"]) & (df["semester_asal"] < 6)
+        (df["is_latest_observed"])
+        & (df["semester_asal"] >= 2)
+        & (df["semester_asal"] < 6)
+        & (df["has_prev"] == 1)
     ].copy()

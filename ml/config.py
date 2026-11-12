@@ -11,6 +11,8 @@ SEMESTER = (1, 2, 3, 4, 5, 6)
 HORIZON = (1, 2, 3, 4, 5)
 RANDOM_STATE = 42
 BOOTSTRAP_REPS = 1000
+PUBLICATION_TAHUN_LULUS = 2026
+PUBLICATION_SEMESTER_ASAL = 5
 
 
 def load_hari_efektif() -> dict[int, int]:

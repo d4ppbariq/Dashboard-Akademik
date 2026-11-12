@@ -3,7 +3,12 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from ml.publish_b2 import _filter_primary, _passes_gate, evaluate_target
+from ml.publish_b2 import (
+    _backtest_publication_rows,
+    _filter_primary,
+    _passes_gate,
+    evaluate_target,
+)
 
 
 def make_primary_frame() -> pd.DataFrame:
@@ -28,6 +33,24 @@ class PublishB2Tests(unittest.TestCase):
         self.assertEqual(len(primary), 2)
         self.assertNotIn(1, primary["semester_asal"].tolist())
         self.assertTrue((primary["target_count"] == 9).all())
+
+    def test_backtest_publication_is_limited_to_cohort_and_semester_five(self):
+        frame = pd.DataFrame(
+            {
+                "siswa_id": ["s1", "s2", "s3", "s4"],
+                "tahun_lulus": [2025, 2026, 2026, 2026],
+                "semester_asal": [5, 5, 4, 5],
+                "has_prev": [1, 1, 1, 1],
+                "b0_strict": [80.0, 80.0, 80.0, 80.0],
+                "avg_k": [80.0, 80.0, 80.0, 80.0],
+                "target_count": [9, 9, 9, 8],
+                "target_nilai": [80.0, 80.0, 80.0, 80.0],
+            }
+        )
+        publication = _backtest_publication_rows(frame, "RATA_RATA")
+        self.assertEqual(len(publication), 1)
+        self.assertEqual(publication.iloc[0]["siswa_id"], "s2")
+        self.assertEqual(int(publication.iloc[0]["semester_asal"]), 5)
 
     def test_gate_requires_all_folds_and_ci_below_zero(self):
         self.assertTrue(_passes_gate(0.8, 1.3, (-0.7, -0.2), [-0.4, -0.5]))

@@ -70,6 +70,14 @@ export async function getPrediksi(): Promise<PrediksiBaris[]> {
     JOIN "Kelas" k ON k.id = s.kelas_id
     JOIN "Angkatan" a ON a.id = k.angkatan_id
     LEFT JOIN "MataPelajaran" mp ON mp.id = p.mata_pelajaran_id
+    WHERE p.skenario = 'A1'
+      AND p.model_versi = (
+        SELECT p2.model_versi
+          FROM "Prediksi" p2
+         WHERE p2.skenario = 'A1'
+         ORDER BY p2.dibuat_pada DESC
+         LIMIT 1
+      )
     ORDER BY a.tahun_lulus DESC, k.nama_kelas, s.nama, p.cakupan
   `);
 

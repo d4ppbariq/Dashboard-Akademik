@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireAuth, hasPermission } from "@/lib/auth/dal";
 import { getDb, persist, newId } from "@/lib/db/store";
 import { pushAudit } from "@/lib/audit";
+import { nisDasar, normalisasiNis } from "@/lib/nis";
 
 const SiswaSchema = z.object({
   nis: z.string().trim().min(1, "NIS wajib diisi"),
@@ -38,12 +39,15 @@ export async function addSiswa(formData: FormData): Promise<{ error?: string }> 
   }
 
   const db = await getDb();
-  const { nis, nama, jenis_kelamin, kelas_id } = parsed.data;
+  const { nis: nisInput, nama, jenis_kelamin, kelas_id } = parsed.data;
+  const hasilNis = normalisasiNis(nisInput);
+  if (!hasilNis.ok) return { error: hasilNis.error };
+  const nis = hasilNis.nis;
 
   if (!db.kelas.some((k) => k.id === kelas_id)) {
     return { error: "Kelas tidak valid" };
   }
-  if (db.siswa.some((s) => s.nis === nis)) {
+  if (db.siswa.some((s) => nisDasar(s.nis) === nis)) {
     return { error: `NIS ${nis} sudah digunakan siswa lain` };
   }
 
@@ -91,8 +95,11 @@ export async function updateSiswa(formData: FormData): Promise<{ error?: string 
   const siswa = db.siswa.find((s) => s.id === id);
   if (!siswa) return { error: "Siswa tidak ditemukan" };
 
-  const { nis, nama, jenis_kelamin } = parsed.data;
-  if (nis !== siswa.nis && db.siswa.some((s) => s.nis === nis)) {
+  const { nis: nisInput, nama, jenis_kelamin } = parsed.data;
+  const hasilNis = normalisasiNis(nisInput);
+  if (!hasilNis.ok) return { error: hasilNis.error };
+  const nis = hasilNis.nis;
+  if (db.siswa.some((s) => s.id !== id && nisDasar(s.nis) === nis)) {
     return { error: `NIS ${nis} sudah digunakan siswa lain` };
   }
 

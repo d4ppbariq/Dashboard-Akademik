@@ -12,6 +12,7 @@
 
 import type { Database } from "@/lib/db/types";
 import type { IdAllocator } from "@/lib/db/id";
+import { nisDasar } from "@/lib/nis";
 import type { ParsedRow } from "./validate";
 
 type Siswa = Database["siswa"][number];
@@ -26,7 +27,10 @@ export function applyRows(
   // salinan. Bila memakai salinan, perubahan nama/jenis kelamin pada siswa
   // yang sudah ada akan hilang tanpa error.
   const byNis = new Map<string, Siswa>();
-  for (const s of db.siswa) byNis.set(s.nis, s);
+  for (const s of db.siswa) {
+    byNis.set(s.nis, s);
+    byNis.set(nisDasar(s.nis), s);
+  }
 
   // Index O(1) menggantikan pemindaian array penuh per baris dan per nilai.
   const kehadiranIndex = new Map<string, number>();
@@ -51,6 +55,7 @@ export function applyRows(
       };
       db.siswa.push(siswa);
       byNis.set(row.nis, siswa);
+      byNis.set(nisDasar(row.nis), siswa);
     } else {
       // Referensi, jadi perubahan ini langsung terlihat di db.siswa.
       siswa.nama = row.nama;

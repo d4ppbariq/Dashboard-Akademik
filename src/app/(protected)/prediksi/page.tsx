@@ -52,7 +52,7 @@ export default async function PrediksiPage() {
     <div>
       <PageHeader
         title="Prediksi Nilai"
-        description="Proyeksi nilai semester berikutnya berdasarkan riwayat nilai yang tersedia."
+        description="Snapshot backtest angkatan 2026: proyeksi nilai semester 6 dari riwayat semester 1–5."
       />
 
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -134,10 +134,13 @@ export default async function PrediksiPage() {
             </>
           )}
           <p>
-            Hanya siswa yang riwayat semesternya belum lengkap sampai semester
-            6 yang memiliki semester target di dalam rentang data. Karena itu
-            jumlah siswa pada snapshot ini terbatas; siswa yang datanya sudah
-            lengkap belum dapat diprediksi tanpa data semester berikutnya.
+            Snapshot ini adalah <span className="font-medium text-foreground">backtest</span>{" "}
+            untuk angkatan 2026: fitur dihitung dari semester 1–5, lalu nilai
+            semester 6 diproyeksikan. Kedua angkatan di database sudah memiliki
+            riwayat lengkap sampai semester 6, sehingga tidak ada siswa aktif
+            yang dapat diprediksi untuk semester berikutnya. Hasil ini dipakai
+            untuk memverifikasi perilaku rule engine, bukan sebagai peringatan
+            dini untuk siswa yang sedang berjalan.
           </p>
         </CardContent>
       </Card>

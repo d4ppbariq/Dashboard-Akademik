@@ -8,9 +8,17 @@ import numpy as np
 import pandas as pd
 
 from .baselines import b0_previous, b2_previous
-from .config import ARTIFACT_DIR, BOOTSTRAP_REPS, MAPEL_UMUM, RANDOM_STATE, RAW_DIR
+from .config import (
+    ARTIFACT_DIR,
+    BOOTSTRAP_REPS,
+    MAPEL_UMUM,
+    PUBLICATION_SEMESTER_ASAL,
+    PUBLICATION_TAHUN_LULUS,
+    RANDOM_STATE,
+    RAW_DIR,
+)
 from .data import build_panel
-from .features import build_supervised, latest_prediction_rows
+from .features import build_supervised
 from .metrics import cluster_paired_delta_ci, regression_metrics
 
 TARGETS = ("RATA_RATA",) + MAPEL_UMUM
@@ -46,6 +54,17 @@ def _passes_gate(
         and delta_ci[1] < 0
         and all(value < 0 for value in fold_deltas)
     )
+
+
+def _backtest_publication_rows(
+    df: pd.DataFrame, target_kode: str
+) -> pd.DataFrame:
+    primary = _filter_primary(df, target_kode)
+    mask = (
+        (primary["tahun_lulus"] == PUBLICATION_TAHUN_LULUS)
+        & (primary["semester_asal"] == PUBLICATION_SEMESTER_ASAL)
+    )
+    return primary[mask].copy()
 
 
 def evaluate_target(
@@ -124,7 +143,7 @@ def build_predictions(
         dataset = build_supervised(
             panel, target_kode=target_kode, require_target=False
         )
-        latest = latest_prediction_rows(dataset)
+        latest = _backtest_publication_rows(dataset, target_kode)
         if latest.empty:
             continue
         values = b2_previous(latest, target_kode)
@@ -193,6 +212,9 @@ def main() -> None:
         "dibuat_pada": dibuat_pada,
         "protokol": "Protokol_Evaluasi_A1 Revisi 4",
         "jenis": "rule-engine",
+        "mode_publikasi": "backtest",
+        "tahun_lulus": PUBLICATION_TAHUN_LULUS,
+        "semester_asal": PUBLICATION_SEMESTER_ASAL,
         "data_hash": data_hash,
         "targets": results,
         "gate": {
@@ -219,6 +241,9 @@ def main() -> None:
             "dibuat_pada": dibuat_pada,
             "data_hash": data_hash,
             "jenis": "rule-engine",
+            "mode_publikasi": "backtest",
+            "tahun_lulus": PUBLICATION_TAHUN_LULUS,
+            "semester_asal": PUBLICATION_SEMESTER_ASAL,
             "published_targets": published,
         },
     )

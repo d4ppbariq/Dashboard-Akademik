@@ -4,10 +4,11 @@
 
 **STATUS: KONSEP ARSITEKTUR — CAPSTONE**
 
-> **Catatan 5 November 2026.** Angka historis di bagian awal dokumen
-> (1 angkatan, 61 siswa) sudah tidak berlaku. Data aktual saat eksekusi:
-> **2 angkatan, 356 siswa, 1.691 pasangan siswa-semester**. Hasil eksekusi
-> dan gate penerbitan ada di §10.
+> **Catatan 12 November 2026.** Angka historis di bagian awal dokumen
+> (1 angkatan, 61 siswa) sudah tidak berlaku. Data aktual setelah deduplikasi:
+> **2 angkatan, 351 siswa, 1.696 pasangan untuk V0, dan 343 siswa/1.340 pasangan
+> untuk populasi primary**. Hasil eksekusi dan gate penerbitan ada di §10.
+> Publikasi akhir adalah backtest B2 angkatan 2026 semester 5 -> 6 (1.260 baris).
 
 |||
 |-|-|
@@ -237,10 +238,10 @@ Model dilatih **di luar aplikasi** dan hasilnya diterbitkan ke dashboard melalui
 
 1. **Training (`train.py`)** — menarik data pelatihan dari Postgres memakai **user database read-only** (bukan `DATABASE_URL` aplikasi), membangun fitur wide, melatih, dan mengevaluasi menurut `Protokol_Evaluasi_A1.md`.
 2. **Artefak model** (`.joblib` + `params.json` + `metrik.json` + `versi`) disimpan **di luar basis data** (folder `ml/artefak/`); model tidak pernah masuk ke DB.
-3. **Penerbitan (`posting.py`)** — menulis baris hasil prediksi (`skenario`, `level`, `entitas_id`, `semester_target`, `nilai_prediksi`, `interval_lower`/`interval_upper`, `versi_model`, `metrik_error`) ke tabel `Prediksi`.
-4. **Tampilan** — web membaca `Prediksi` lewat `getDb()` dan menyajikannya sebagai **tab "Proyeksi" pada detail siswa**, dibatasi permission `prediksi.read` (default diberikan ke role **Guru** dan **Operator**; dapat diubah Superadmin). Menu halaman khusus "Proyeksi" di sidebar ditunda sebagai fase lanjutan.
+3. **Penerbitan (`publish_b2.py` lalu `post.mjs`)** — `publish_b2.py` menulis artefak prediksi terbit; `post.mjs` menulis baris (`skenario`, `level`, `entitas_id`, `semester_target`, `nilai_prediksi`, `interval_lower`/`interval_upper`, `versi_model`, `metrik_error`) ke tabel `Prediksi`.
+4. **Tampilan** — web membaca `Prediksi` lewat `getDb()` dan menyajikannya di halaman **`/prediksi`**, dibatasi permission `prediksi.read` (default diberikan ke role **Guru** dan **Operator**; dapat diubah Superadmin).
 
-Alur ringkas: `train.py` → artefak model (file, di luar DB) → `posting.py` → tabel `Prediksi` → `getDb()` → tab "Proyeksi".
+Alur ringkas: `extract.py` → artefak/fitur → `train.py` → artefak model (file, di luar DB) → `publish_b2.py` → `post.mjs` → tabel `Prediksi` → `getDb()` → halaman `/prediksi`.
 
 > **Catatan teknis sebelum membuat tabel baru.** Proyek ini belum memiliki
 > migration runner. `npm run db:migrate` hanya menerapkan
@@ -270,7 +271,7 @@ Setelah serah terima, **operator sekolah** menjadi pelaksana pembaruan model. Si
 - `train.py` menarik data terbaru dan mengevaluasi ulang menurut protokol yang sama (§ `Protokol_Evaluasi_A1.md`).
 - **Gate wajib:** hasil baru hanya dipakai bila **mengalahkan baseline naif**; bila kalah, versi lama tetap berlaku dan hasilnya dicatat.
 - Versi model lama **dipertahankan** untuk audit; tanpa auto-deploy.
-- `posting.py` menerbitkan prediksi semester berikutnya dengan `versi_model` baru; web otomatis menampilkan angka terbaru melalui tab "Proyeksi".
+- `publish_b2.py` menerbitkan prediksi semester berikutnya dengan `versi_model` baru; `post.mjs` menuliskannya ke `Prediksi` dan web menampilkan versi terbaru melalui halaman `/prediksi`.
 - Proses dibuat reproduktif (seed tetap) dan terdokumentasi sebagai runbook (butir luaran yang direncanakan di proposal).
 
 Seiring bertambahnya angkatan (2–3+), retraining inilah yang membuka peluang klaim lebih kuat (B1) sesuai tabel klaim pada Protokol §10.
@@ -283,36 +284,37 @@ Seiring bertambahnya angkatan (2–3+), retraining inilah yang membuka peluang k
 > Klaim yang boleh dibuat pada tahap ini diatur oleh pasal 10 protocol: dengan
 > 1 cohort, hanya boleh disebut "bukti kelayakan".
 
-# 10. Catatan Eksekusi Awal (5 November 2026)
+# 10. Catatan Eksekusi (5-12 November 2026)
 
 Pipeline dijalankan pada data aktual dua angkatan dengan protokol Revisi 2.
 Semua angka di bawah berasal dari `ml/artefak/metrics.json`.
 
 ## 10.1 Data dan konfigurasi
 
-- 2025: 169 siswa; 2026: 187 siswa; total 356 siswa, 12 kelas.
-- 1.691 pasangan siswa-semester dapat dievaluasi; 349 siswa unik.
+- 2025: 169 siswa; 2026: 182 siswa; total 351 siswa, 12 kelas.
+- 1.696 pasangan siswa-semester dapat dievaluasi pada V0; 350 siswa unik.
+- Populasi primary: 343 siswa, 1.340 pasangan untuk `RATA_RATA`.
 - Target utama: rata-rata 9 mapel umum semester `k+1`.
 - Evaluasi: leave-one-angkatan-out 2 fold, bootstrap cluster per siswa.
 - Denominator kehadiran: 100 hari efektif sementara dari
   `config/hari-efektif.json`.
-- Migrasi `003_prediksi.sql` sudah diterapkan ke database.
+- Migrasi `001`, `003`, `004`, dan `005` sudah diterapkan ke database.
 
 ## 10.2 Hasil target utama
 
 | Model | MAE | RMSE | MAPE |
 |---|---:|---:|---:|
-| Model Ridge/ElasticNet | 1,487 | 1,869 | 1,73% |
-| B0 — semester sebelumnya | 1,490 | 1,772 | 1,72% |
-| B1 — rata-rata angkatan | 2,581 | 3,333 | 2,93% |
-| B2 — rule engine ambang | 0,966 | 1,259 | 1,12% |
+| Model Ridge/ElasticNet | 1,4912 | 1,8740 | 1,73% |
+| B0 — semester sebelumnya | 1,4914 | 1,7725 | 1,72% |
+| B1 — rata-rata angkatan | 2,5850 | 3,3351 | 2,93% |
+| B2 — rule engine ambang | 0,9658 | 1,2587 | 1,12% |
 
-- `ΔMAE` model terhadap B0 = **−0,0037**, CI95 **\[−0,086; +0,088\]**.
+- `ΔMAE` model terhadap B0 = **−0,0002**, CI95 **\[−0,0884; +0,0914\]**.
   Gate penerbitan **TIDAK LULUS** karena interval melewati nol.
-- `ΔMAE` model terhadap B2 = **+0,521**, CI95 **\[+0,437; +0,606\]**.
+- `ΔMAE` model terhadap B2 = **+0,5254**, CI95 **\[+0,4425; +0,6133\]**.
   Rule engine B2 justru lebih baik daripada model pada target utama.
-- Fold tidak stabil: 2026→2025 model MAE 2,122 vs B0 1,425;
-  2025→2026 model MAE 0,902 vs B0 1,550.
+- Fold tidak stabil: 2026→2025 model MAE 2,1341 vs B0 1,4253;
+  2025→2026 model MAE 0,9022 vs B0 1,5519.
 
 ## 10.3 B2 yang dipakai
 
@@ -328,52 +330,62 @@ didukung pada data ini. Ini dilaporkan sebagai temuan, bukan disembunyikan.
 
 ## 10.4 Konsekuensi
 
-- `published_targets` kosong; `ml/post.mjs` **tidak** menulis ke tabel
-  `Prediksi`. Tabel tetap kosong (0 baris) setelah eksekusi.
+- Model ML tidak diterbitkan; `published_targets` untuk ML kosong.
+- B2 diterbitkan sebagai rule engine dengan 7 target dan 1.260 baris backtest
+  angkatan 2026 semester 5 -> 6.
 - Model per-mapel yang secara titik mengalahkan B0 (BIN, IPS, MTK, PJK, PPKn)
   tidak diterbitkan karena gate utama gagal dan klaim harus konservatif.
-- Langkah berikutnya: tambah cohort, uji fitur non-linear terkait ambang,
-  dan verifikasi apakah pola kenaikan nilai B2 konsisten atau artefak data.
+- Langkah berikutnya: tambah cohort/data siswa aktif, uji fitur non-linear
+  terkait ambang, dan verifikasi apakah pola kenaikan nilai B2 konsisten atau
+  artefak data.
 
 ## 10.5 Perintah reproduksi
 
 ```bash
 npm run ml:extract
-npm run ml:train
-npm run ml:predict
-npm run ml:post
 npm run ml:test
+npm run ml:train -- --variant v0
+npm run ml:train -- --variant v1 --population primary --feature-set core
+npm run ml:train -- --variant v2 --population primary --feature-set v2
+npm run ml:train -- --variant v3 --population primary --feature-set v3
+npm run ml:publish-b2
+npm run ml:post:b2
+npm test
+npm run typecheck
+npm run lint
+npm run build
 ```
 
 Artefak (diabaikan git): `ml/artefak/metrics.json`, `versi.json`,
-`predictions_test.csv`, `prediksi_terbaru.csv`, dan `model_*.joblib`.
+`predictions_test.csv`, `prediksi_terbaru.csv`, `b2_metrics.json`,
+`b2_versi.json`, dan `model_*.joblib`.
 
 ## 10.6 Eksperimen V1 — 19 fitur inti (8 November 2026)
 
 Protokol **Revisi 3** dijalankan sebagai eksperimen **eksploratif** setelah hasil
 §10 diketahui. Populasi gate dibatasi ke `semester_asal >= 2`, `has_prev == 1`,
-dan `target_count == 9` (342 siswa, 1.336 pasangan). Target latih adalah residual
+dan `target_count == 9` (343 siswa, 1.340 pasangan). Target latih adalah residual
 `y − B0`, dengan B0 = nilai terakhir yang tersedia pada semester `<= k`.
 Model memakai 19 fitur inti (§13.4 protokol).
 
 | Model | MAE | RMSE | MAPE | Bias |
 |---|---:|---:|---:|---:|
-| V1 — 19 fitur, residual B0 | **1,1734** | 1,4519 | 1,36% | +0,567 |
-| B0 — persistence (nilai terakhir) | 1,3770 | 1,6285 | 1,58% | −1,164 |
-| B1 — rata-rata angkatan | 2,6072 | 3,3525 | 2,94% | −1,181 |
-| B2 — rule engine ambang | **0,8971** | 1,1612 | 1,04% | −0,173 |
+| V1 — 19 fitur, residual B0 | **1,1519** | 1,4272 | 1,33% | +0,5406 |
+| B0 — persistence (nilai terakhir) | 1,3774 | 1,6287 | 1,58% | −1,1651 |
+| B1 — rata-rata angkatan | 2,6113 | 3,3547 | 2,95% | −1,1897 |
+| B2 — rule engine ambang | **0,8968** | 1,1605 | 1,04% | −0,1740 |
 
-- `ΔMAE` V1 terhadap B0 = **−0,2036**, CI95 **\[−0,269; −0,133\]** → secara
+- `ΔMAE` V1 terhadap B0 = **−0,2255**, CI95 **\[−0,2929; −0,1588\]** → secara
   agregat model mengalahkan B0.
-- `ΔMAE` V1 terhadap B2 = **+0,2762**, CI95 **\[+0,226; +0,328\]** → model
+- `ΔMAE` V1 terhadap B2 = **+0,2551**, CI95 **\[+0,2012; +0,3067\]** → model
   **masih kalah** dari rule engine B2.
-- Fold tidak stabil: 2026→2025 `ΔMAE` **+0,206** (model kalah);
-  2025→2026 `ΔMAE` **−0,576** (model menang). Model hanya menang di **1 dari 2
+- Fold tidak stabil: 2026→2025 `ΔMAE` **+0,1634** (model kalah);
+  2025→2026 `ΔMAE` **−0,5768** (model menang). Model hanya menang di **1 dari 2
   fold**, sehingga gate stabil **TIDAK LULUS**.
-- Cold-start (349 baris) dilaporkan terpisah dan tidak masuk gate: B0 fallback
-  MAE 1,928; B1 2,506; B2 1,228.
-- **Keputusan:** V1 tidak diterbitkan. `Prediksi` tetap 0 baris dan tidak ada
-  klaim bahwa ML lebih baik. Artefak eksperimen:
+- Cold-start (350 baris) dilaporkan terpisah dan tidak masuk gate: B0 fallback
+  MAE 1,9317; B1 2,5101; B2 1,2305.
+- **Keputusan:** V1 tidak diterbitkan. Tidak ada baris ML di tabel `Prediksi`;
+  publikasi yang ada adalah B2 backtest. Artefak eksperimen:
   `ml/artefak/experiment_v1_metrics.json`.
 
 **Koreksi definisi.** Semester `k − 1` **bukan** baseline persistence yang sah:
@@ -386,39 +398,41 @@ terakhir yang tersedia). Percobaan memakai `k − 1` sempat menghasilkan B0 MAE
 Revisi 4 menetapkan **B2 sebagai syarat keras**: model ML hanya terbit bila
 `MAE_model < MAE_B2`, selain tetap lulus gate B0 dan menang di setiap fold
 (§14 protokol). V2/V3 berlabel **eksploratif** karena ditetapkan setelah hasil
-V1 dilihat. Populasi tetap `primary` (342 siswa, 1.336 pasangan).
+V1 dilihat. Populasi tetap `primary` (343 siswa, 1.340 pasangan).
 
 | Varian | Fitur | MAE | RMSE | MAPE | Bias |
 |---|---|---:|---:|---:|---:|
-| V2 — hinge + interaksi | 23 | 1,4493 | 1,7178 | 1,66% | +0,392 |
-| V3 — hybrid B2 | 20 | 1,1936 | 1,4960 | 1,38% | +0,584 |
-| V1 — 19 fitur (pembanding) | 19 | 1,1734 | 1,4519 | 1,36% | +0,567 |
-| B0 — persistence ketat | — | 1,3770 | 1,6285 | 1,58% | −1,164 |
-| B1 — rata-rata angkatan | — | 2,6072 | 3,3525 | 2,94% | −1,181 |
-| B2 — rule engine ambang | — | **0,8971** | 1,1612 | 1,04% | −0,173 |
+| V2 — hinge + interaksi | 23 | 1,3427 | 1,5921 | 1,54% | +0,2705 |
+| V3 — hybrid B2 | 20 | 1,1714 | 1,4712 | 1,36% | +0,5562 |
+| V1 — 19 fitur (pembanding) | 19 | 1,1519 | 1,4272 | 1,33% | +0,5406 |
+| B0 — persistence ketat | — | 1,3774 | 1,6287 | 1,58% | −1,1651 |
+| B1 — rata-rata angkatan | — | 2,6113 | 3,3547 | 2,95% | −1,1897 |
+| B2 — rule engine ambang | — | **0,8968** | 1,1605 | 1,04% | −0,1740 |
 
 **V2 (23 fitur).** `hinge_70`, `hinge_80`, interaksi `semester_asal × trend_slope`,
 dan `semester_sejak_masuk × avg_k` tidak membantu. `ΔMAE` terhadap B0 =
-**+0,0723**, CI95 **\[+0,0063; +0,1429\]**: model justru kalah dari B0 secara
-agregat, dan menang hanya di 1 dari 2 fold. V2 **gagal**.
+**−0,0347**, CI95 **\[−0,1008; +0,0252\]**: CI melewati nol, dan model hanya
+menang di 1 dari 2 fold. V2 **gagal**.
 
 **V3 (20 fitur, hybrid B2).** Model belajar residual `y − B2` dan menyertakan
-kandidat residual nol. Hasil: `ΔMAE` terhadap B0 = **−0,1834**, CI95
-**\[−0,2525; −0,1126\]** (menang agregat), tetapi `ΔMAE` terhadap B2 =
-**+0,2965**, CI95 **\[+0,2429; +0,3551\]** (kalah). Fold B0:
-`+0,2482` dan `−0,5755` → 1/2 fold. Fold B2: `+0,7019` dan `−0,0718` → 1/2 fold.
-V3 menang atas B2 hanya pada fold 2025→2026 (0,9066 vs 0,9784), tetapi kalah
-besar pada fold 2026→2025 (1,5096 vs 0,8077). V3 **gagal gate B2**.
+kandidat residual nol. Hasil: `ΔMAE` terhadap B0 = **−0,2060**, CI95
+**\[−0,2764; −0,1357\]** (menang agregat), tetapi `ΔMAE` terhadap B2 =
+**+0,2746**, CI95 **\[+0,2172; +0,3317\]** (kalah). Fold B0:
+`+0,2040` dan `−0,5765` → 1/2 fold. Fold B2: `+0,6578` dan `−0,0716` → 1/2 fold.
+V3 menang atas B2 hanya pada fold 2025→2026 (0,9057 vs 0,9773), tetapi kalah
+besar pada fold 2026→2025 (1,4654 vs 0,8077). V3 **gagal gate B2**.
 
 **Keputusan.** Tidak ada varian ML yang lulus. Sesuai §14.1, jalur produk yang
 sah adalah **B2 sebagai rule engine** berlabel, bukan klaim ML. Artefak:
 `ml/artefak/experiment_v2_metrics.json`, `experiment_v3_metrics.json`.
 
-**B2 terhadap B0 (target utama).** MAE 0,8971 vs 1,3770; `ΔMAE` **−0,4799**;
-fold **−0,4537** dan **−0,5037** → B2 menang di kedua fold. Per-mapel, B2 gagal
+**B2 terhadap B0 (target utama).** MAE 0,8968 vs 1,3774; `ΔMAE` **−0,4806**;
+fold **−0,4537** dan **−0,5049** → B2 menang di kedua fold. Per-mapel, B2 gagal
 menang di kedua fold untuk **BIG, PABP, dan PJK**; target itu tidak diterbitkan.
 Target yang lolos kandidat: `RATA_RATA`, BIN, IPA, IPS, MTK, PPKn, SUN (CI tetap
 dihitung oleh penerbit sebelum menulis ke tabel).
+Publikasi aktual memakai backtest angkatan 2026 semester 5 -> 6: 180 siswa,
+1.260 baris, versi `b2-rule-03e9d215f2`.
 
 # 11. Glosarium
 

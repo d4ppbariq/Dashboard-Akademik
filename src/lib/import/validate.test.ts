@@ -118,6 +118,26 @@ test("NIS kosong dan Nama kosong ditolak", () => {
   assert.equal(validateRows([row({ Nama: "" })], ctx()).ok, false);
 });
 
+test("NIS berdesimal ditolak, NIS bulat dan leading zero diterima", () => {
+  const desimal = validateRows([row({ NIS: "232470119.083077" })], ctx());
+  assert.equal(desimal.ok, false);
+  assert.match(desimal.errors[0].pesan, /bilangan bulat/);
+
+  const bulat = validateRows([row({ NIS: "232470119" })], ctx());
+  assert.equal(bulat.ok, true);
+  assert.equal(bulat.rows[0].nis, "232470119");
+
+  const leading = validateRows([row({ NIS: "001234" })], ctx());
+  assert.equal(leading.ok, true);
+  assert.equal(leading.rows[0].nis, "001234");
+});
+
+test("NIS desimal nol dinormalisasi ke bentuk bulat", () => {
+  const r = validateRows([row({ NIS: "232470119.0" })], ctx());
+  assert.equal(r.ok, true);
+  assert.equal(r.rows[0].nis, "232470119");
+});
+
 test("duplikat NIS+semester di dalam file ditolak", () => {
   const r = validateRows([row({ MTK: 80 }), row({ MTK: 81 })], ctx());
   assert.equal(r.ok, false);

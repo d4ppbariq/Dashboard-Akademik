@@ -1,14 +1,19 @@
 # Rencana Perbaikan Data Prediksi
 
-Status: **rencana, belum dieksekusi**  
-Tanggal: 9 November 2026  
+Status: **sudah dieksekusi 12 November 2026**
+
+Tanggal rencana: 9 November 2026
+
 Konteks: temuan record parsial/duplikat pada publikasi halaman `/prediksi`
+
+> Bagian 1-5 di bawah mendokumentasikan **kondisi dan rencana sebelum perbaikan**.
+> Hasil akhir, angka final, dan keputusan yang diambil ada di §8.
 
 ---
 
-## 1. Ringkasan
+## 1. Ringkasan kondisi sebelum perbaikan
 
-Data hasil ekstraksi menunjukkan:
+Data hasil ekstraksi 9 November 2026 menunjukkan:
 
 | Kelompok | Jumlah record | Keterangan |
 |---|---:|---|
@@ -89,7 +94,7 @@ Dugaan utama: NIS dari file Excel terbaca sebagai angka desimal, lalu disimpan s
 
 ### 3.2 Dampak pada evaluasi dan publikasi
 
-- Evaluasi model memakai populasi `primary`: 342 siswa dan 1.336 pasangan untuk `RATA_RATA`, serta 345 siswa dan 1.342 pasangan untuk sebagian besar target per-mapel.
+- Evaluasi model memakai populasi `primary`: 342 siswa dan 1.336 pasangan untuk `RATA_RATA`, serta 345 siswa dan 1.342 pasangan untuk sebagian besar target per-mapel. Setelah deduplikasi angkanya menjadi 343/1.340 dan 346/1.346.
 - Publikasi memakai populasi yang berbeda: record dengan `is_latest_observed` dan `semester_asal < 6`.
 - Kelima record parsial tidak memiliki baris evaluasi, sehingga prediksi yang terbit tidak memiliki metrik error yang benar-benar mewakili record tersebut.
 - Ini melanggar prinsip konsistensi: populasi yang dipublikasikan seharusnya menjadi bagian dari populasi yang dievaluasi, atau perbedaannya harus dijelaskan dan dibatasi.
@@ -385,6 +390,11 @@ Perkiraan hasil setelah penggabungan:
 
 Angka final harus ditentukan setelah kebijakan publikasi dipilih.
 
+> **Hasil aktual 12 November 2026.** Setelah penggabungan, semua siswa memiliki
+> semester maksimum 6. Filter early warning ketat menghasilkan 0 baris, bukan
+> 1 siswa/7 baris. Publikasi akhir memakai backtest angkatan 2026 semester 5 -> 6
+> sebanyak 1.260 baris. Lihat §8.
+
 ### Tahap 6 - Perbarui laporan
 
 Laporan ML harus memuat:
@@ -408,12 +418,12 @@ Laporan ML harus memuat:
 
 ---
 
-## 6. Keputusan yang masih terbuka
+## 6. Keputusan yang diambil
 
-1. **Format NIS:** apakah hanya angka bulat? Rekomendasi: ya.
-2. **Kebijakan publikasi:** apakah siswa dengan riwayat semester 1-5 tetap boleh diprediksi? Rekomendasi: ya, dengan minimal dua semester riwayat dan label keterbatasan.
-3. **Record kanonis:** record mana yang dipertahankan bila penggabungan dilakukan? Rekomendasi: record dengan NIS bersih `232470119`, setelah nilai dari record lain dipindahkan.
-4. **Konflik nilai:** bila ada nilai berbeda untuk mapel dan semester yang sama, siapa yang berwenang memutuskan nilai yang benar?
+1. **Format NIS:** hanya angka bulat; leading zero dipertahankan. Desimal ditolak saat impor/form dan dicegah oleh `ck_siswa_nis_digit`.
+2. **Kebijakan publikasi:** tidak memaksakan early warning saat semua siswa sudah mencapai semester 6. Publikasi memakai **backtest angkatan 2026 semester 5 -> 6**, dengan label backtest di UI.
+3. **Record kanonis:** record dengan NIS bersih `232470119` dipertahankan; nilai dan kehadiran dari record pecahan dipindahkan sebelum record duplikat dihapus.
+4. **Konflik nilai:** tidak ditemukan konflik nilai atau kehadiran saat penggabungan; script akan membatalkan transaksi bila konflik terdeteksi.
 
 ---
 
@@ -426,7 +436,67 @@ Laporan ML harus memuat:
 
 ---
 
-## 8. Referensi
+## 8. Hasil eksekusi (12 November 2026)
+
+### 8.1 Backup
+
+Backup database dan artefak: `.data/backup-20261112-115356/` (`nesaciba.dump`, `raw/`, `artefak/`).
+
+### 8.2 Perbaikan data
+
+| Tahap | Sebelum | Sesudah |
+|---|---:|---:|
+| Record `Siswa` | 356 | 351 |
+| Duplikat NIS dasar | 1 grup (6 record) | 0 |
+| Duplikat nilai | 0 | 0 |
+| Duplikat kehadiran | 0 | 0 |
+| NIS non-digit | 0 | 0 |
+
+- Record kanonis: `s-mup9f4xy-1zm2z3`, NIS `232470119`.
+- 55 baris `NilaiSiswa` dan 5 baris `KehadiranSiswa` dipindahkan ke record kanonis.
+- 5 record duplikat dihapus setelah pemindahan.
+- `001_unique_constraints.sql` dijalankan; UNIQUE `NilaiSiswa`, `KehadiranSiswa`, dan `Kelas` terpasang.
+- `005_nis_format.sql` dijalankan; `ck_siswa_nis_digit` terpasang.
+
+### 8.3 Validasi NIS
+
+- `src/lib/nis.ts` menormalisasi angka bulat dan mempertahankan leading zero.
+- Desimal ditolak, kecuali bentuk `.0` yang dinormalisasi menjadi angka bulat.
+- Impor dan form siswa memakai helper yang sama.
+
+### 8.4 Publikasi
+
+- Filter ML ketat (`is_latest_observed`, minimal 2 semester, `semester_asal < 6`) menghasilkan **0 baris**.
+- Publikasi akhir: **backtest angkatan 2026, semester 5 -> 6**.
+- `ml/publish_b2.py` membatasi populasi ke `_filter_primary()` lalu memilih `tahun_lulus = 2026` dan `semester_asal = 5`.
+- Hasil: **180 siswa, 1.260 baris, 7 cakupan**, versi `b2-rule-03e9d215f2`.
+- `src/server/service/prediksi.ts` hanya menampilkan `model_versi` terbaru untuk skenario A1.
+- UI `/prediksi` memberi label backtest dan menjelaskan bahwa tidak ada siswa aktif.
+
+### 8.5 Verifikasi
+
+- `npm test`: 172 lulus.
+- `npm run ml:test`: 25 lulus.
+- `npm run typecheck`: lulus.
+- `npm run lint`: lulus.
+- `npm run build`: lulus.
+- Database: 1.260 baris `Prediksi`, 180 siswa unik, 7 cakupan, semua semester_asal 5.
+
+### 8.6 Berkas utama yang berubah
+
+- `src/lib/nis.ts`, `src/lib/nis.test.ts`
+- `src/lib/import/validate.ts`, `src/lib/import/actions.ts`, `src/lib/import/apply.ts`
+- `src/lib/siswa/actions.ts`, `src/lib/import/validate.test.ts`
+- `src/scripts/repair-nis.ts`
+- `src/lib/db/migrations/005_nis_format.sql`
+- `ml/config.py`, `ml/features.py`, `ml/publish_b2.py`, `ml/tests/test_leakage.py`, `ml/tests/test_publish_b2.py`
+- `src/server/service/prediksi.ts`, `src/app/(protected)/prediksi/page.tsx`
+- `docs/LAPORAN_ML_Rencana_dan_Hasil.md`, `docs/ML_Roadmap_Capstone.md`, `docs/DRAFT4_Proposal_Capstone.md`, `docs/RENCANA_Hari_Efektif_Kehadiran.md`
+- `src/lib/db/migrations/README.md`
+
+---
+
+## 9. Referensi
 
 - `ml/data/raw/siswa.csv`
 - `ml/data/raw/nilai.csv`
@@ -436,7 +506,10 @@ Laporan ML harus memuat:
 - `ml/publish_b2.py`
 - `src/lib/db/schema.sql`
 - `src/lib/db/migrations/001_unique_constraints.sql`
+- `src/lib/db/migrations/005_nis_format.sql`
 - `src/lib/db/migrations/README.md`
+- `src/lib/nis.ts`
+- `src/scripts/repair-nis.ts`
 - `src/lib/import/validate.ts`
 - `src/lib/import/apply.ts`
 - `src/server/service/prediksi.ts`

@@ -404,8 +404,8 @@ Aturan tambahan:
 - Populasi latih dan evaluasi: `primary` saja.
 - Pemilihan hiperparameter: `GroupKFold` per `siswa_id` di dalam data latih;
   outer test tidak boleh dipakai untuk tuning.
-- V2 (hinge/interaksi) dan V3 (hybrid B2) belum dijalankan pada tahap ini dan
-  harus ditetapkan lebih dulu sebelum dieksekusi.
+- V2 (hinge/interaksi) dan V3 (hybrid B2) ditetapkan pada Revisi 4 dan sudah
+  dijalankan; hasilnya dicatat di §14.7 dan `ML_Roadmap_Capstone.md` §10.7.
 
 ### 13.6 Gate dan pelaporan
 
@@ -417,8 +417,9 @@ Aturan tambahan:
 - Laporkan `n_siswa`, `n_pasangan`, MAE, RMSE, MAPE, bias (mean error), per
   fold, per semester, per angkatan, per kelas, serta `cold_start` terpisah.
 - Bootstrap tetap di-cluster per `siswa_id`.
-- Bila V1 gagal, hasil ditulis sebagai hasil negatif; tabel `Prediksi` tetap
-  kosong dan tidak ada klaim bahwa model lebih baik.
+- Bila V1 gagal, hasil ditulis sebagai hasil negatif; tidak ada baris **ML**
+  yang diterbitkan dan tidak ada klaim bahwa model lebih baik dari B0/B2.
+  Penerbitan B2 sebagai rule engine diatur terpisah di §15.
 
 ### 13.7 Relasi dengan addendum sebelumnya
 
@@ -533,6 +534,46 @@ Aturan:
 - Semua hasil V2/V3, termasuk yang gagal, dicatat di
   `ML_Roadmap_Capstone.md` dan tidak menghapus hasil §10/V1.
 
+### 14.7 Hasil eksekusi V2/V3 (12 November 2026)
+
+- V2 (23 fitur): MAE 1,3427; `ΔMAE` vs B0 = −0,0347, CI95
+  \[−0,1008; +0,0252]; menang 1/2 fold. Gagal gate B0 dan B2.
+- V3 (20 fitur): MAE 1,1714; `ΔMAE` vs B0 = −0,2060, CI95
+  \[−0,2764; −0,1357]; `ΔMAE` vs B2 = +0,2746, CI95
+  \[+0,2172; +0,3317]; menang 1/2 fold. Gagal gate B2.
+- Tidak ada varian ML yang diterbitkan. Detail ada di
+  `ml/artefak/experiment_v2_metrics.json`, `experiment_v3_metrics.json`, dan
+  `ML_Roadmap_Capstone.md` §10.7.
+
+---
+
+## 15. Addendum Revisi 5 — Publikasi Backtest B2
+
+Addendum ini mencatat kebijakan publikasi yang dipilih setelah seluruh varian ML
+gagal. §1–§14 tetap berlaku untuk evaluasi dan gate ML.
+
+### 15.1 Latar belakang
+
+- Setelah deduplikasi, **351 siswa** memiliki semester maksimum 6.
+- Filter early warning ketat (`is_latest_observed`, minimal 2 semester,
+  `semester_asal < 6`) menghasilkan **0 baris** karena tidak ada siswa aktif
+  dengan semester berikutnya di dalam data.
+- Memaksakan early warning akan menghasilkan tabel kosong atau publikasi dari
+  record yang tidak eligible.
+
+### 15.2 Kebijakan
+
+- Publikasi memakai **backtest angkatan 2026, semester 5 -> 6**.
+- Populasi dibatasi ke `_filter_primary()` lalu `tahun_lulus = 2026` dan
+  `semester_asal = 5`.
+- Dari 182 siswa angkatan 2026, **180 siswa** lolos filter primary.
+- Hasil: **1.260 baris** (180 siswa × 7 cakupan), versi
+  `b2-rule-03e9d215f2`, `jenis: "rule-engine"`.
+- Target yang diterbitkan: `RATA_RATA`, BIN, IPA, IPS, MTK, PPKn, SUN.
+- UI wajib menyebut hasil ini sebagai **snapshot backtest**, bukan peringatan
+  dini untuk siswa aktif.
+- Kebijakan ini tidak mengubah gate ML: tidak ada baris ML di `Prediksi`.
+
 ---
 
 ## Checklist sebelum menjalankan training
@@ -558,3 +599,5 @@ Aturan:
 - [ ] V2 tepat 23 fitur dan V3 tepat 20 fitur; daftar dibekukan sebelum eksekusi
 - [ ] V3 menyertakan kandidat residual nol (B2) dalam seleksi
 - [ ] Model ML hanya terbit bila `MAE < MAE_B2`; bila sama, terbitkan B2 berlabel rule engine
+- [ ] Publikasi backtest B2 dibatasi ke cohort/semester yang eligible dan diberi label backtest
+- [ ] Tidak ada baris ML di `Prediksi` bila gate gagal

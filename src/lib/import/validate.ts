@@ -9,6 +9,7 @@
 
 import { normalisasi, resolveSemuaKolom, type MapelRow, type Resolution } from "./mapel-resolver";
 import { hariEfektif } from "@/lib/attendance/calendar";
+import { normalisasiNis } from "@/lib/nis";
 
 export const SEMESTER_MAX = 6;
 
@@ -206,8 +207,9 @@ export function validateRows(
       barisOk = false;
     };
 
-    const nis = str(pick(r, "nis"));
-    if (!nis) fail("NIS kosong");
+    const hasilNis = normalisasiNis(pick(r, "nis"));
+    const nis = hasilNis.ok ? hasilNis.nis : "";
+    if (!hasilNis.ok) fail(hasilNis.error);
 
     const nama = str(pick(r, "nama"));
     if (!nama) fail("Nama kosong");
